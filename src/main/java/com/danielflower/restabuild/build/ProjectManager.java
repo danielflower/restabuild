@@ -1,6 +1,6 @@
-package com.danielflower.apprunner.build;
+package com.danielflower.restabuild.build;
 
-import com.danielflower.apprunner.FileSandbox;
+import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
@@ -19,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static com.danielflower.apprunner.FileSandbox.dirPath;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class ProjectManager {
     public static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
@@ -43,14 +43,14 @@ public class ProjectManager {
                     .call();
             }
         } catch (IOException | GitAPIException e) {
-            throw new AppRunnerException("Could not open or create git repo at " + gitDir, e);
+            throw new RestaBuildException("Could not open or create git repo at " + gitDir, e);
         }
         StoredConfig config = git.getRepository().getConfig();
         config.setString("remote", "origin", "url", gitUrl);
         try {
             config.save();
         } catch (IOException e) {
-            throw new AppRunnerException("Error while setting remote on Git repo at " + dirPath(gitDir), e);
+            throw new RestaBuildException("Error while setting remote on Git repo at " + dirPath(gitDir), e);
         }
         return new ProjectManager(git, instanceDir);
     }
@@ -86,7 +86,7 @@ public class ProjectManager {
         String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
         File f = new File(projectRoot, buildFile);
         if (!f.isFile()) {
-            throw new AppRunnerException("Please place a file called " + buildFile + " in the root of your repo");
+            throw new RestaBuildException("Please place a file called " + buildFile + " in the root of your repo");
         }
         return f;
     }
@@ -100,7 +100,7 @@ public class ProjectManager {
     private File copyToNewInstanceDir() throws IOException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
-            throw new AppRunnerException("Could not create " + dirPath(dest));
+            throw new RestaBuildException("Could not create " + dirPath(dest));
         }
         FileUtils.copyDirectory(git.getRepository().getWorkTree(), dest, pathname -> !pathname.getName().equals(".git"));
         return dest;

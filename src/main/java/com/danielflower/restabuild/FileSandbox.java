@@ -1,4 +1,4 @@
-package com.danielflower.apprunner;
+package com.danielflower.restabuild;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;

@@ -1,4 +1,4 @@
-package com.danielflower.apprunner.build;
+package com.danielflower.restabuild.build;
 
 import org.apache.maven.shared.invoker.InvocationOutputHandler;
 

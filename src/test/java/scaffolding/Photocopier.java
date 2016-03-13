@@ -7,7 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
-import static com.danielflower.apprunner.FileSandbox.dirPath;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 import static org.apache.commons.io.FilenameUtils.separatorsToSystem;
 
 public class Photocopier {

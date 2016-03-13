@@ -1,7 +1,7 @@
-package com.danielflower.apprunner.web;
+package com.danielflower.restabuild.web;
 
-import com.danielflower.apprunner.FileSandbox;
-import com.danielflower.apprunner.build.AppRunnerException;
+import com.danielflower.restabuild.FileSandbox;
+import com.danielflower.restabuild.build.RestaBuildException;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.NCSARequestLog;
 import org.eclipse.jetty.server.Server;
@@ -91,7 +91,7 @@ public class WebServer implements AutoCloseable {
         try {
             return new URL("http", "localhost", port, "");
         } catch (MalformedURLException e) {
-            throw new AppRunnerException(e);
+            throw new RestaBuildException(e);
         }
     }
 }

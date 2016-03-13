@@ -1,8 +1,8 @@
-package com.danielflower.apprunner.web;
+package com.danielflower.restabuild.web;
 
-import com.danielflower.apprunner.FileSandbox;
-import com.danielflower.apprunner.build.OutputToWriterBridge;
-import com.danielflower.apprunner.build.ProjectManager;
+import com.danielflower.restabuild.FileSandbox;
+import com.danielflower.restabuild.build.OutputToWriterBridge;
+import com.danielflower.restabuild.build.ProjectManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +10,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.*;
 
-import static com.danielflower.apprunner.FileSandbox.dirPath;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 @Path("/v1/builds")
 public class BuildResource {

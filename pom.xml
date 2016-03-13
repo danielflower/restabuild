@@ -300,7 +300,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.danielflower.apprunner.App</mainClass>
+                                    <mainClass>com.danielflower.restabuild.App</mainClass>
                                 </transformer>
                             </transformers>
                             <filters>

@@ -1,7 +1,7 @@
-package com.danielflower.apprunner;
+package com.danielflower.restabuild;
 
-import com.danielflower.apprunner.build.AppRunnerException;
-import com.danielflower.apprunner.build.InvalidConfigException;
+import com.danielflower.restabuild.build.RestaBuildException;
+import com.danielflower.restabuild.build.InvalidConfigException;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import static com.danielflower.apprunner.FileSandbox.dirPath;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class Config {
     public static final String SERVER_PORT = "appserver.port";
@@ -70,7 +70,7 @@ public class Config {
         try {
             FileUtils.forceMkdir(f);
         } catch (IOException e) {
-            throw new AppRunnerException("Could not create " + dirPath(f));
+            throw new RestaBuildException("Could not create " + dirPath(f));
         }
         return f;
     }

@@ -1,18 +1,15 @@
-package com.danielflower.apprunner;
+package com.danielflower.restabuild;
 
-import com.danielflower.apprunner.runners.*;
-import com.danielflower.apprunner.web.WebServer;
+import com.danielflower.restabuild.web.WebServer;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
-import static com.danielflower.apprunner.Config.SERVER_PORT;
-import static com.danielflower.apprunner.FileSandbox.dirPath;
-import static java.util.Arrays.asList;
+import static com.danielflower.restabuild.Config.SERVER_PORT;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class App {
     public static final Logger log = LoggerFactory.getLogger(App.class);

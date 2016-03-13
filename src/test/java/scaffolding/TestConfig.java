@@ -1,7 +1,7 @@
 package scaffolding;
 
-import com.danielflower.apprunner.Config;
-import com.danielflower.apprunner.FileSandbox;
+import com.danielflower.restabuild.Config;
+import com.danielflower.restabuild.FileSandbox;
 
 import java.io.File;
 import java.io.IOException;

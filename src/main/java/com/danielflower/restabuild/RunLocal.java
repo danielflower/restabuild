@@ -1,4 +1,4 @@
-package com.danielflower.apprunner;
+package com.danielflower.restabuild;
 
 /**
  * An entry point for running the server locally that uses sample-config.properties for config.

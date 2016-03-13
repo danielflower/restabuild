@@ -1,4 +1,4 @@
-package com.danielflower.apprunner.build;
+package com.danielflower.restabuild.build;
 
 import org.apache.commons.exec.*;
 import org.apache.commons.lang3.StringUtils;
@@ -9,12 +9,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-import static com.danielflower.apprunner.FileSandbox.dirPath;
+import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class ProcessStarter {
     public static final Logger log = LoggerFactory.getLogger(ProcessStarter.class);
 
-    public static void run(InvocationOutputHandler outputHandler, CommandLine command, File projectRoot, long timeout) throws AppRunnerException {
+    public static void run(InvocationOutputHandler outputHandler, CommandLine command, File projectRoot, long timeout) throws RestaBuildException {
         long startTime = logStartInfo(command, projectRoot);
         ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
         Executor executor = createExecutor(outputHandler, command, projectRoot, watchDog);
@@ -24,16 +24,16 @@ public class ProcessStarter {
                 String message = watchDog.killedProcess()
                     ? "Timed out waiting for " + command
                     : "Exit code " + exitValue + " returned from " + command;
-                throw new AppRunnerException(message);
+                throw new RestaBuildException(message);
             }
         } catch (Exception e) {
-            if (e instanceof  AppRunnerException) {
-                throw (AppRunnerException)e;
+            if (e instanceof RestaBuildException) {
+                throw (RestaBuildException)e;
             }
             String message = "Error running: " + dirPath(projectRoot) + "> " + StringUtils.join(command.toStrings(), " ");
             outputHandler.consumeLine(message);
             outputHandler.consumeLine(e.toString());
-            throw new AppRunnerException(message, e);
+            throw new RestaBuildException(message, e);
         }
         logEndTime(command, startTime);
     }

@@ -1,7 +1,5 @@
-package com.danielflower.apprunner.runners;
+package com.danielflower.restabuild.build;
 
-import com.danielflower.apprunner.build.OutputToWriterBridge;
-import com.danielflower.apprunner.build.ProjectManager;
 import org.apache.commons.io.output.StringBuilderWriter;
 import org.junit.Test;
 import scaffolding.AppRepo;
@@ -11,7 +9,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-public class LeinRunnerTest {
+public class ProjectManagerTest {
 
     AppRepo appRepo = AppRepo.create("maven");
     StringBuilderWriter buildLog = new StringBuilderWriter();
