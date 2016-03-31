@@ -7,7 +7,6 @@
     </appender>
 
     <logger name="org.eclipse.jetty" level="INFO" />
-    <logger name="org.eclipse.jetty.proxy" level="DEBUG" />
 
     <root level="DEBUG">
         <appender-ref ref="STDOUT" />
