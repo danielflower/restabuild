@@ -15,7 +15,7 @@ public class SystemTest {
 
     private static App app;
     private static RestClient client;
-    AppRepo appRepo = AppRepo.create("maven");
+    private AppRepo appRepo = AppRepo.create("maven");
 
 
     @BeforeClass

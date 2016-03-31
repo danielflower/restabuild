@@ -1,7 +1,6 @@
 package com.danielflower.restabuild.web;
 
 import com.danielflower.restabuild.FileSandbox;
-import com.danielflower.restabuild.build.OutputToWriterBridge;
 import com.danielflower.restabuild.build.ProjectManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +13,7 @@ import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 @Path("/v1/builds")
 public class BuildResource {
-    public static final Logger log = LoggerFactory.getLogger(BuildResource.class);
+    private static final Logger log = LoggerFactory.getLogger(BuildResource.class);
 
     private final FileSandbox fileSandbox;
 
@@ -46,7 +45,7 @@ public class BuildResource {
                     doubleLog(writer, "Fetching from git...");
                     File buildDir = manager.pullFromGitAndCopyWorkingCopyToNewDir();
                     doubleLog(writer, "Working copy is at " + dirPath(buildDir));
-                    manager.build(new OutputToWriterBridge(writer));
+                    manager.build(writer);
 
                     doubleLog(writer, "Successfully built " + gitUrl);
                 } catch (Exception e) {

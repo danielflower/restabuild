@@ -16,21 +16,21 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ProjectManagerTest {
 
-    AppRepo appRepo = AppRepo.create("maven");
+    private AppRepo appRepo = AppRepo.create("maven");
 
     @Test
     public void canBuildProjectsAndPickUpChanges() throws Exception {
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox());
 
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        BuildResult result = runner.build(new OutputToWriterBridge(buildLog));
+        BuildResult result = runner.build(buildLog);
         assertThat(result.success, is(true));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
 
         breakTheProject(appRepo);
 
         StringBuilderWriter badBuildLog = new StringBuilderWriter();
-        BuildResult result2 = runner.build(new OutputToWriterBridge(badBuildLog));
+        BuildResult result2 = runner.build(badBuildLog);
         assertThat(result2.success, is(false));
         assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
 

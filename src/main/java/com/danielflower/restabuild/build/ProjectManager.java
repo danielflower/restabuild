@@ -5,7 +5,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.maven.shared.invoker.InvocationOutputHandler;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -16,12 +15,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.concurrent.TimeUnit;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class ProjectManager {
-    public static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
+    private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
 
     public static ProjectManager create(String gitUrl, FileSandbox fileSandbox) {
         String buildId = DigestUtils.shaHex(gitUrl);
@@ -63,15 +63,13 @@ public class ProjectManager {
     }
 
 
-    public BuildResult build(InvocationOutputHandler outputHandler) throws Exception {
-        InvocationOutputHandler buildLogHandler = outputHandler::consumeLine;
-
+    public BuildResult build(Writer outputHandler) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
         File id = pullFromGitAndCopyWorkingCopyToNewDir();
         doubleLog(outputHandler, "Created new instance in " + dirPath(id));
 
         CommandLine command = new CommandLine(buildCommand(id));
-        ProcessStarter processStarter = new ProcessStarter(buildLogHandler);
+        ProcessStarter processStarter = new ProcessStarter(outputHandler);
         return processStarter.run(command, id, TimeUnit.MINUTES.toMillis(30));
     }
 
@@ -100,8 +98,8 @@ public class ProjectManager {
     }
 
 
-    private static void doubleLog(InvocationOutputHandler writer, String message) throws IOException {
+    private static void doubleLog(Writer writer, String message) throws IOException {
         log.info(message);
-        writer.consumeLine(message);
+        ProcessStarter.writeLine(writer, message);
     }
 }

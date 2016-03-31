@@ -9,7 +9,7 @@ import java.io.File;
 import java.io.IOException;
 
 public class FileSandbox {
-    public static final Logger log = LoggerFactory.getLogger(FileSandbox.class);
+    private static final Logger log = LoggerFactory.getLogger(FileSandbox.class);
     public static String dirPath(File file) {
         try {
             return file.getCanonicalPath();
