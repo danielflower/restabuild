@@ -30,8 +30,8 @@ public class RestClient {
     }
 
 
-    public ContentResponse release(String gitUrl) throws Exception {
-        return client.GET(appRunnerUrl + "/release?gitUrl=" + URLEncoder.encode(gitUrl, "UTF-8"));
+    public ContentResponse build(String gitUrl) throws Exception {
+        return client.GET(appRunnerUrl + "/build?gitUrl=" + URLEncoder.encode(gitUrl, "UTF-8"));
     }
 
     public void stop() {

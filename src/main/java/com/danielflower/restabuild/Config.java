@@ -14,7 +14,8 @@ import java.util.Properties;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class Config {
-    public static final String SERVER_PORT = "appserver.port";
+    public static final String SERVER_PORT = "restabuild.port";
+    public static final String DATA_DIR = "restabuild.data";
 
     public static Config load(String[] commandLineArgs) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());

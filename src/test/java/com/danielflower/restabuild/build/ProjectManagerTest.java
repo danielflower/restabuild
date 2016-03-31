@@ -1,9 +1,14 @@
 package com.danielflower.restabuild.build;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.StringBuilderWriter;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.Test;
 import scaffolding.AppRepo;
 import scaffolding.TestConfig;
+
+import java.io.File;
+import java.io.IOException;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -12,12 +17,29 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class ProjectManagerTest {
 
     AppRepo appRepo = AppRepo.create("maven");
-    StringBuilderWriter buildLog = new StringBuilderWriter();
 
     @Test
-    public void canStartAndStopLeinProjects() throws Exception {
+    public void canBuildProjectsAndPickUpChanges() throws Exception {
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox());
-        runner.build(new OutputToWriterBridge(buildLog));
+
+        StringBuilderWriter buildLog = new StringBuilderWriter();
+        BuildResult result = runner.build(new OutputToWriterBridge(buildLog));
+        assertThat(result.success, is(true));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
+
+        breakTheProject(appRepo);
+
+        StringBuilderWriter badBuildLog = new StringBuilderWriter();
+        BuildResult result2 = runner.build(new OutputToWriterBridge(badBuildLog));
+        assertThat(result2.success, is(false));
+        assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
+
+    }
+
+    private static void breakTheProject(AppRepo appRepo) throws IOException, GitAPIException {
+        File pom = new File(appRepo.originDir, "pom.xml");
+        FileUtils.write(pom, "I am a corrupt pom");
+        appRepo.origin.add().addFilepattern(".").call();
+        appRepo.origin.commit().setMessage("Breaking the build").call();
     }
 }

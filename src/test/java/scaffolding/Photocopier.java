@@ -39,9 +39,4 @@ public class Photocopier {
         return new File(separatorsToSystem("target/samples/" + UUID.randomUUID() + "/" + moduleName));
     }
 
-    public static File tempFile(String name) throws IOException {
-        File file = new File(separatorsToSystem("target/temp/" + UUID.randomUUID() + "/" + name));
-        FileUtils.touch(file);
-        return file;
-    }
 }

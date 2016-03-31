@@ -8,8 +8,8 @@
     <artifactId>restabuild</artifactId>
     <version>0.1-SNAPSHOT</version>
 
-    <name>App Runner</name>
-    <description>The little web app runner that hosts java, clojure and nodejs apps</description>
+    <name>RestaBuild</name>
+    <description>Builds Git-hosted projects via a REST API</description>
     <url>https://github.com/danielflower/restabuild</url>
 
     <properties>

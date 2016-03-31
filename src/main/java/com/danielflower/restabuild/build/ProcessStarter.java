@@ -13,9 +13,14 @@ import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class ProcessStarter {
     public static final Logger log = LoggerFactory.getLogger(ProcessStarter.class);
+    private final InvocationOutputHandler outputHandler;
 
-    public static void run(InvocationOutputHandler outputHandler, CommandLine command, File projectRoot, long timeout) throws RestaBuildException {
-        long startTime = logStartInfo(command, projectRoot);
+    public ProcessStarter(InvocationOutputHandler outputHandler) {
+        this.outputHandler = outputHandler;
+    }
+
+    public BuildResult run(CommandLine command, File projectRoot, long timeout) throws RestaBuildException {
+        long startTime = logStartInfo(command);
         ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
         Executor executor = createExecutor(outputHandler, command, projectRoot, watchDog);
         try {
@@ -24,27 +29,32 @@ public class ProcessStarter {
                 String message = watchDog.killedProcess()
                     ? "Timed out waiting for " + command
                     : "Exit code " + exitValue + " returned from " + command;
-                throw new RestaBuildException(message);
+                return BuildResult.failure(message);
+            } else {
+                return BuildResult.success();
             }
         } catch (Exception e) {
-            if (e instanceof RestaBuildException) {
-                throw (RestaBuildException)e;
-            }
-            String message = "Error running: " + dirPath(projectRoot) + "> " + StringUtils.join(command.toStrings(), " ");
-            outputHandler.consumeLine(message);
-            outputHandler.consumeLine(e.toString());
-            throw new RestaBuildException(message, e);
+            String message = "Error running: " + dirPath(projectRoot) + "> " + StringUtils.join(command.toStrings(), " ")
+                + " - " + e.getMessage();
+            log.info(message);
+            return BuildResult.failure(message);
+        } finally {
+            logEndTime(command, startTime);
         }
-        logEndTime(command, startTime);
     }
 
-    public static long logStartInfo(CommandLine command, File projectRoot) {
-        log.info("Starting " + dirPath(projectRoot) + "> " + StringUtils.join(command.toStrings(), " "));
+    private void doubleLog(String message) {
+        log.info(message);
+        outputHandler.consumeLine(message);
+    }
+
+    private long logStartInfo(CommandLine command) {
+        doubleLog("Starting " + StringUtils.join(command.toStrings(), " "));
         return System.currentTimeMillis();
     }
 
-    private static void logEndTime(CommandLine command, long startTime) {
-        log.info("Completed " + command.getExecutable() + " in " + (System.currentTimeMillis() - startTime) + "ms");
+    private void logEndTime(CommandLine command, long startTime) {
+        doubleLog("Completed " + command.getExecutable() + " in " + (System.currentTimeMillis() - startTime) + "ms");
     }
 
     private static Executor createExecutor(InvocationOutputHandler consoleLogHandler, CommandLine command, File projectRoot, ExecuteWatchdog watchDog) {

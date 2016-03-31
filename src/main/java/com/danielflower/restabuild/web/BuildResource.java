@@ -22,7 +22,6 @@ public class BuildResource {
         this.fileSandbox = fileSandbox;
     }
 
-
     @POST
     @Produces(MediaType.TEXT_PLAIN)
     public Response build(@Context UriInfo uriInfo, @QueryParam("gitUrl") String gitUrl) throws IOException {
@@ -57,12 +56,11 @@ public class BuildResource {
                 }
             }
         }
+    }
 
-        private void doubleLog(Writer writer, String message) throws IOException {
-            log.info(message);
-            writer.write(message + "\n");
-            writer.flush();
-        }
+    private static void doubleLog(Writer writer, String message) throws IOException {
+        writer.write(message);
+        writer.flush();
     }
 
 }

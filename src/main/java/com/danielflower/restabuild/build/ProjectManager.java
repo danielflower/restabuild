@@ -4,7 +4,6 @@ import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.maven.shared.invoker.InvocationOutputHandler;
 import org.eclipse.jgit.api.Git;
@@ -64,22 +63,16 @@ public class ProjectManager {
     }
 
 
-    public void build(InvocationOutputHandler outputHandler) throws Exception {
+    public BuildResult build(InvocationOutputHandler outputHandler) throws Exception {
         InvocationOutputHandler buildLogHandler = outputHandler::consumeLine;
 
-        buildLogHandler.consumeLine("Fetching latest changes from git...");
+        doubleLog(outputHandler, "Fetching latest changes from git...");
         File id = pullFromGitAndCopyWorkingCopyToNewDir();
-        buildLogHandler.consumeLine("Created new instance in " + dirPath(id));
+        doubleLog(outputHandler, "Created new instance in " + dirPath(id));
 
-        runBuild(id, buildLogHandler);
-        buildLogHandler.consumeLine("Completed");
-    }
-
-    private void runBuild(File projectRoot, InvocationOutputHandler buildLogHandler) {
-        CommandLine command = new CommandLine(buildCommand(projectRoot));
-        buildLogHandler.consumeLine("Running " + StringUtils.join(command.toStrings(), " "));
-        ProcessStarter.run(buildLogHandler, command, projectRoot, TimeUnit.MINUTES.toMillis(30));
-        buildLogHandler.consumeLine("Build complete");
+        CommandLine command = new CommandLine(buildCommand(id));
+        ProcessStarter processStarter = new ProcessStarter(buildLogHandler);
+        return processStarter.run(command, id, TimeUnit.MINUTES.toMillis(30));
     }
 
     private File buildCommand(File projectRoot) {
@@ -104,5 +97,11 @@ public class ProjectManager {
         }
         FileUtils.copyDirectory(git.getRepository().getWorkTree(), dest, pathname -> !pathname.getName().equals(".git"));
         return dest;
+    }
+
+
+    private static void doubleLog(InvocationOutputHandler writer, String message) throws IOException {
+        log.info(message);
+        writer.consumeLine(message);
     }
 }
