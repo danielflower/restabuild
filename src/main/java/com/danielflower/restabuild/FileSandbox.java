@@ -10,11 +10,11 @@ import java.io.IOException;
 
 public class FileSandbox {
     public static final Logger log = LoggerFactory.getLogger(FileSandbox.class);
-    public static String dirPath(File samples) {
+    public static String dirPath(File file) {
         try {
-            return samples.getCanonicalPath();
+            return file.getCanonicalPath();
         } catch (IOException e) {
-            return samples.getAbsolutePath();
+            return file.getAbsolutePath();
         }
     }
 
@@ -34,7 +34,7 @@ public class FileSandbox {
     private File ensureExists(String relativePath) {
         String path = FilenameUtils.concat(dirPath(root), FilenameUtils.separatorsToSystem(relativePath));
         File f = new File(path);
-        f.mkdirs();
+        log.debug("Created " + dirPath(f) + "? " + f.mkdirs());
         return f;
     }
 }
