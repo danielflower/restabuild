@@ -47,6 +47,7 @@ public class WebServer implements AutoCloseable {
 
         port = ((ServerConnector) jettyServer.getConnectors()[0]).getLocalPort();
         log.info("Started web server at " + baseUrl());
+        log.info("POST to " + baseUrl() + "/v1/builds?gitUrl={url} to run a build");
     }
 
     private Handler createRestService(FileSandbox fileSandbox) {
