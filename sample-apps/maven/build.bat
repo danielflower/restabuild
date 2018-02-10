@@ -1,6 +1,6 @@
 
 echo Hello there
-call mvn --version
+call "mvn --version"
 echo That was the version
 call mvn package
 
