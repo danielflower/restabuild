@@ -14,13 +14,13 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BuildResult {
-
+    private final Object lock = new Object();
     public final String id = UUID.randomUUID().toString().replace("-", "");
     private final FileSandbox sandbox;
     private final File buildDir;
     private volatile BuildState state = BuildState.QUEUED;
     private final GitRepo gitRepo;
-    private StringBuffer buildLog = new StringBuffer();
+    private volatile StringBuffer buildLog = new StringBuffer();
     private File buildLogFile;
     private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
 
@@ -40,12 +40,13 @@ public class BuildResult {
         if (state == BuildState.QUEUED) {
             return "Build not started.";
         }
-        StringBuffer inMem = buildLog;
-        if (inMem != null) {
-            return "Build in progress: " + inMem.toString();
-        } else {
-            return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
+
+        synchronized (lock) {
+            if (!hasFinished()) {
+                return "Build in progress: " + buildLog.toString();
+            }
         }
+        return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
     }
 
     public JSONObject toJson() {
@@ -56,17 +57,19 @@ public class BuildResult {
     }
 
     public void run() throws Exception {
-
-        state = BuildState.IN_PROGRESS;
+        BuildState newState = state = BuildState.IN_PROGRESS;
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-            state = pm.build(writer);
+            newState = pm.build(writer);
         } catch (Exception ex) {
-            state = BuildState.FAILURE;
+            newState = BuildState.FAILURE;
         } finally {
             FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
-            buildLog = null;
+            synchronized (lock) {
+                state = newState;
+                buildLog = null;
+            }
         }
     }
 
