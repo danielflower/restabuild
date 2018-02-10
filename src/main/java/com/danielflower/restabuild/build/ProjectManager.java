@@ -81,6 +81,9 @@ public class ProjectManager {
 
         String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
         File f = new File(workDir, buildFile);
+        if (!f.setExecutable(true)) {
+            log.warn("Failed to make " + dirPath(f) + " executable");
+        }
         BuildState result;
         if (!f.isFile()) {
             outputHandler.write("Please place a file called " + buildFile + " in the root of your repo");
