@@ -23,6 +23,7 @@
 <h1>Restabuild</h1>
 <p>The world's simplest build server</p>
 
+<h2>Submit a build</h2>
 <form id="createForm" action="/restabuild/api/v1/builds" method="post">
     <input type="hidden" name="responseType" value="html">
     <label>
@@ -34,6 +35,10 @@
 
 <p>...or use curl:</p>
 <div><code id="curlCommand">curl</code></div>
+
+<h2>View builds</h2>
+
+<p>Use the API at <a href="/restabuild/api/v1/builds">/restabuild/api/v1/builds</a></p>
 
 </body>
 <script>

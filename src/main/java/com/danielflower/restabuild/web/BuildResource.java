@@ -7,6 +7,7 @@ import com.danielflower.restabuild.build.BuildResult;
 import com.danielflower.restabuild.build.GitRepo;
 import io.muserver.HeaderNames;
 import io.muserver.HeaderValues;
+import io.muserver.MuResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -41,7 +42,7 @@ public class BuildResource {
         if (responseType.equals("json")) {
             responseBuilder = Response.created(buildPath.build())
                 .header("Content-Type", MediaType.APPLICATION_JSON)
-                .entity(jsonForResult(buildPath, result));
+                .entity(jsonForResult(buildPath, result).toString(4));
         } else {
             responseBuilder = Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build());
         }
@@ -92,10 +93,37 @@ public class BuildResource {
     @GET
     @Path("{id}/log")
     @Produces(MediaType.TEXT_PLAIN)
-    public String getLog(@PathParam("id") String id) throws IOException {
+    public void getLog(@PathParam("id") String id, @Context MuResponse resp) throws IOException {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
-            return br.get().log();
+            BuildResult result = br.get();
+            resp.contentType(MediaType.TEXT_PLAIN);
+            if (result.hasFinished()) {
+                resp.write(result.log());
+            } else {
+
+                // HACK forces some buffer somewhere to trip and so the browser renders immediately
+                resp.sendChunk("*...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*" +
+                    "...................................................................................................*");
+
+                result.streamLog(resp::sendChunk);
+                while (!result.hasFinished()) {
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
         } else {
             throw new NotFoundException();
         }
