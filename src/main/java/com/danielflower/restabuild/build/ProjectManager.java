@@ -25,9 +25,9 @@ public class ProjectManager {
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
 
     public static ProjectManager create(String gitUrl, FileSandbox fileSandbox) {
-        String buildId = DigestUtils.sha1Hex(gitUrl);
-        File gitDir = fileSandbox.repoDir(buildId);
-        File instanceDir = fileSandbox.tempDir(buildId + File.separator + "instances");
+        String repoId = DigestUtils.sha1Hex(gitUrl);
+        File gitDir = fileSandbox.repoDir(repoId);
+        File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
 
         Git git;
         try {
@@ -64,14 +64,18 @@ public class ProjectManager {
     }
 
 
-    public BuildResult build(Writer outputHandler) throws Exception {
+    public BuildState build(Writer outputHandler) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
-        File id = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
-        doubleLog(outputHandler, "Created new instance in " + dirPath(id));
+        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
+        doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
-        CommandLine command = new CommandLine(buildCommand(id));
+        CommandLine command = new CommandLine(buildCommand(workDir));
         ProcessStarter processStarter = new ProcessStarter(outputHandler);
-        return processStarter.run(command, id, TimeUnit.MINUTES.toMillis(30));
+        BuildState result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
+
+        FileUtils.deleteQuietly(workDir);
+
+        return result;
     }
 
     private File buildCommand(File projectRoot) {
@@ -83,7 +87,7 @@ public class ProjectManager {
         return f;
     }
 
-    public File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
+    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
         git.reset().setMode(ResetCommand.ResetType.HARD).setRef("origin/master").call();
         return copyToNewInstanceDir();

@@ -1,5 +1,8 @@
 package com.danielflower.restabuild;
 
+import com.danielflower.restabuild.build.BuildDatabase;
+import com.danielflower.restabuild.build.BuildQueue;
+import com.danielflower.restabuild.web.BuildResource;
 import com.danielflower.restabuild.web.WebServer;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -7,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 
 import static com.danielflower.restabuild.Config.SERVER_PORT;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
@@ -15,9 +19,15 @@ public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
     private final Config config;
     private WebServer webServer;
+    private BuildQueue buildQueue;
+    private BuildDatabase database;
 
     public App(Config config) {
         this.config = config;
+    }
+
+    public URI uri() {
+        return webServer.server.uri();
     }
 
     public void start() {
@@ -28,7 +38,12 @@ public class App {
 
         int appRunnerPort = config.getInt(SERVER_PORT);
 
-        webServer = WebServer.start(appRunnerPort, fileSandbox);
+        database = new BuildDatabase();
+        buildQueue = new BuildQueue(config.getInt(Config.CONCURRENT_BUILDS));
+        buildQueue.start();
+
+        BuildResource buildResource = new BuildResource(fileSandbox, buildQueue, database);
+        webServer = WebServer.start(appRunnerPort, buildResource);
     }
 
     private void deleteOldTempFiles(File tempDir) {
@@ -52,6 +67,13 @@ public class App {
             }
             log.info("Shutdown complete");
             webServer = null;
+        }
+        try {
+            log.info("Stopping queue.....");
+            buildQueue.stop();
+            log.info("Queue stopped");
+        } catch (InterruptedException e) {
+            log.info("Interrupted");
         }
     }
 

@@ -30,6 +30,9 @@ public class FileSandbox {
     public File repoDir(String gitUrl) {
         return ensureExists("repos/" + DigestUtils.sha1Hex(gitUrl));
     }
+    public File buildDir(String id) {
+        return ensureExists("builds/" + id);
+    }
 
     private File ensureExists(String relativePath) {
         String path = FilenameUtils.concat(dirPath(root), FilenameUtils.separatorsToSystem(relativePath));

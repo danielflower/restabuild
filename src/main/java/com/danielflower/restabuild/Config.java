@@ -14,8 +14,9 @@ import java.util.Properties;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class Config {
-    public static final String SERVER_PORT = "restabuild.port";
+    static final String SERVER_PORT = "restabuild.port";
     public static final String DATA_DIR = "restabuild.data";
+    public static final String CONCURRENT_BUILDS = "restabuild.concurrent.builds";
 
     public static Config load(String[] commandLineArgs) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());
@@ -40,15 +41,15 @@ public class Config {
 
     private final Map<String, String> raw;
 
-    public Config(Map<String, String> raw) {
+    private Config(Map<String, String> raw) {
         this.raw = raw;
     }
 
-    public String get(String name, String defaultVal) {
+    private String get(String name, String defaultVal) {
         return raw.getOrDefault(name, defaultVal);
     }
 
-    public String get(String name) {
+    private String get(String name) {
         String s = get(name, null);
         if (s == null) {
             throw new InvalidConfigException("Missing config item: " + name);
@@ -58,6 +59,15 @@ public class Config {
 
     public int getInt(String name) {
         String s = get(name);
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            throw new InvalidConfigException("Could not convert " + name + "=" + s + " to an integer");
+        }
+    }
+
+    public int getInt(String name, int defaultValue) {
+        String s = get(name, String.valueOf(defaultValue));
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {

@@ -24,15 +24,15 @@ public class ProjectManagerTest {
         ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox());
 
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        BuildResult result = runner.build(buildLog);
-        assertThat(result.success, is(true));
+        BuildState result = runner.build(buildLog);
+        assertThat(result, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
 
         breakTheProject(appRepo);
 
         StringBuilderWriter badBuildLog = new StringBuilderWriter();
-        BuildResult result2 = runner.build(badBuildLog);
-        assertThat(result2.success, is(false));
+        BuildState result2 = runner.build(badBuildLog);
+        assertThat(result2, is(BuildState.FAILURE));
         assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
 
     }

@@ -1,7 +1,7 @@
 package com.danielflower.restabuild.web;
 
-import com.danielflower.restabuild.FileSandbox;
 import io.muserver.*;
+import io.muserver.handlers.ResourceHandler;
 import io.muserver.rest.RestHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,21 +10,28 @@ import static io.muserver.MuServerBuilder.muServer;
 
 public class WebServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(WebServer.class);
-    private MuServer server;
+    public MuServer server;
 
     private WebServer(MuServer server) {
         this.server = server;
     }
 
-    public static WebServer start(int port, FileSandbox fileSandbox) {
+    public static WebServer start(int port, BuildResource buildResource) {
         MuServer server = muServer()
             .withHttpConnection(port)
             .addHandler((request, response) -> {
-                log.info(response.toString());
+                log.info(request.toString());
+                if (request.uri().getPath().equals("/")) {
+                    response.redirect("/restabuild/");
+                    return true;
+                }
                 return false;
             })
             .addHandler(new CORSFilter())
-            .addHandler(RestHandlerBuilder.create(new BuildResource(fileSandbox)))
+            .addHandler(ResourceHandler
+                .fileOrClasspath("src/main/resources/web", "/web")
+                .withPathToServeFrom("/restabuild"))
+            .addHandler(RestHandlerBuilder.create(buildResource))
             .start();
 
         log.info("Started web server at " + server.uri());

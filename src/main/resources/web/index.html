@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Restabuild</title>
+    <style>
+        body {
+            font-family: Arial,serif;
+        }
+        input[type=text] {
+            display: block;
+            width: 95%;
+            margin: 10px 0;
+        }
+        input[type=submit] {
+            padding: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h1>Restabuild</h1>
+<p>The world's simplest build server</p>
+
+<form action="/restabuild/api/v1/builds" method="post">
+    <input type="hidden" name="responseType" value="html">
+    <label>
+        Git URL:
+        <input type="text" name="gitUrl" required value="git@github.com:3redronin/mu-server-sample.git">
+    </label>
+    <input type="submit" value="Run build">
+</form>
+
+
+</body>
+</html>

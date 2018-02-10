@@ -21,25 +21,27 @@ public class ProcessStarter {
         this.outputHandler = outputHandler;
     }
 
-    public BuildResult run(CommandLine command, File projectRoot, long timeout) throws RestaBuildException {
+    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout) throws RestaBuildException, IOException {
         long startTime = logStartInfo(command);
         ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
-        Executor executor = createExecutor(outputHandler, command, projectRoot, watchDog);
+        Executor executor = createExecutor(this.outputHandler, command, projectRoot, watchDog);
         try {
             int exitValue = executor.execute(command, System.getenv());
             if (executor.isFailure(exitValue)) {
                 String message = watchDog.killedProcess()
                     ? "Timed out waiting for " + command
                     : "Exit code " + exitValue + " returned from " + command;
-                return BuildResult.failure(message);
+                outputHandler.append(message);
+                return BuildState.FAILURE;
             } else {
-                return BuildResult.success();
+                return BuildState.SUCCESS;
             }
         } catch (Exception e) {
             String message = "Error running: " + dirPath(projectRoot) + "> " + StringUtils.join(command.toStrings(), " ")
                 + " - " + e.getMessage();
             log.info(message);
-            return BuildResult.failure(message);
+            outputHandler.append(message);
+            return BuildState.FAILURE;
         } finally {
             logEndTime(command, startTime);
         }

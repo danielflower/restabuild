@@ -1,6 +1,8 @@
 package com.danielflower.restabuild;
 
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.util.Fields;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -14,8 +16,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class SystemTest {
 
     private static App app;
-    private static RestClient client;
-    private AppRepo appRepo = AppRepo.create("maven");
+    private final AppRepo appRepo = AppRepo.create("maven");
+    private final HttpClient client = RestClient.instance;
 
 
     @BeforeClass
@@ -23,20 +25,19 @@ public class SystemTest {
         Config config = Config.load(new String[]{"sample-config.properties"});
         app = new App(config);
         app.start();
-
-        client = RestClient.create("http://localhost:" + config.getInt("restabuild.port"));
     }
 
     @AfterClass
     public static void stop() {
         app.shutdown();
-        client.stop();
     }
 
     @Test
     public void theRestApiCanBeUsedToBuildStuff() throws Exception {
-        ContentResponse response = client.build(appRepo.gitUrl());
-        assertThat(response, ContentResponseMatcher.equalTo(200, containsString("BUILD SUCCESS")));
+        Fields fields = new Fields();
+        fields.add("gitUrl", appRepo.gitUrl());
+        ContentResponse response = client.FORM(app.uri().resolve("/restabuild/api/v1/builds"), fields);
+        assertThat(response, ContentResponseMatcher.equalTo(201, containsString("status")));
     }
 
 }

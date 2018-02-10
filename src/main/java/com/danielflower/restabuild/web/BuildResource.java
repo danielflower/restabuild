@@ -1,64 +1,96 @@
 package com.danielflower.restabuild.web;
 
 import com.danielflower.restabuild.FileSandbox;
-import com.danielflower.restabuild.build.ProjectManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.danielflower.restabuild.build.BuildDatabase;
+import com.danielflower.restabuild.build.BuildQueue;
+import com.danielflower.restabuild.build.BuildResult;
+import com.danielflower.restabuild.build.GitRepo;
+import io.muserver.HeaderNames;
+import io.muserver.HeaderValues;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
-import java.io.*;
+import java.io.IOException;
+import java.util.Optional;
 
-import static com.danielflower.restabuild.FileSandbox.dirPath;
-
-@Path("/v1/builds")
+@Path("/restabuild/api/v1/builds")
 public class BuildResource {
-    private static final Logger log = LoggerFactory.getLogger(BuildResource.class);
 
     private final FileSandbox fileSandbox;
+    private final BuildQueue buildQueue;
+    private final BuildDatabase database;
 
-    public BuildResource(FileSandbox fileSandbox) {
+    public BuildResource(FileSandbox fileSandbox, BuildQueue buildQueue, BuildDatabase database) {
         this.fileSandbox = fileSandbox;
+        this.buildQueue = buildQueue;
+        this.database = database;
     }
 
     @POST
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response create(@FormParam("gitUrl") String gitUrl,
+                           @FormParam("responseType") @DefaultValue("json") String responseType,
+                           @Context UriInfo uriInfo) {
+        BuildResult result = createInternal(gitUrl);
+
+        UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
+        Response.ResponseBuilder responseBuilder;
+        if (responseType.equals("json")) {
+            responseBuilder = Response.created(buildPath.build())
+                .entity(getJson(result.id, buildPath));
+        } else {
+            responseBuilder = Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build());
+        }
+        return responseBuilder
+            .header(HeaderNames.CACHE_CONTROL.toString(), HeaderValues.NO_CACHE)
+            .build();
+
+    }
+
+    private BuildResult createInternal(String gitUrl) {
+        if (gitUrl == null || gitUrl.isEmpty()) {
+            throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
+        }
+        GitRepo gitRepo = new GitRepo(gitUrl);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo);
+        database.save(result);
+        buildQueue.enqueue(result);
+        return result;
+    }
+
+    @GET
+    @Path("{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public String get(@PathParam("id") String id, @Context UriInfo uriInfo) {
+        return getJson(id, uriInfo.getRequestUriBuilder());
+    }
+
+    private String getJson(String id, UriBuilder requestUriBuilder) {
+        Optional<BuildResult> br = database.get(id);
+        if (br.isPresent()) {
+            return br.get().toJson()
+                .put("url", requestUriBuilder.build())
+                .put("logUrl", requestUriBuilder.path("log").build().toString())
+                .toString(4);
+        } else {
+            throw new NotFoundException();
+        }
+    }
+
+    @GET
+    @Path("{id}/log")
     @Produces(MediaType.TEXT_PLAIN)
-    public Response build(@Context UriInfo uriInfo, @QueryParam("gitUrl") String gitUrl) throws IOException {
-        StreamingOutput stream = new BuildStreamer(gitUrl, fileSandbox);
-        return Response.ok(stream).build();
-    }
-
-    private static class BuildStreamer implements StreamingOutput {
-        private final String gitUrl;
-        private final FileSandbox fileSandbox;
-
-        public BuildStreamer(String gitUrl, FileSandbox fileSandbox) {
-            this.gitUrl = gitUrl;
-            this.fileSandbox = fileSandbox;
-        }
-
-        @Override
-        public void write(OutputStream output) throws IOException, WebApplicationException {
-            try (PrintWriter writer = new PrintWriter(output)) {
-                try {
-                    ProjectManager manager = ProjectManager.create(gitUrl, fileSandbox);
-                    doubleLog(writer, "Fetching from git...");
-                    File buildDir = manager.pullFromGitAndCopyWorkingCopyToNewDir(writer);
-                    doubleLog(writer, "Working copy is at " + dirPath(buildDir));
-                    manager.build(writer);
-
-                    doubleLog(writer, "Successfully built " + gitUrl);
-                } catch (Exception e) {
-                    log.error("Error while building " + gitUrl, e);
-                    doubleLog(writer,"Error while building: " + e);
-                }
-            }
+    public String getLog(@PathParam("id") String id) throws IOException {
+        Optional<BuildResult> br = database.get(id);
+        if (br.isPresent()) {
+            String log = br.get().log();
+            System.out.println("log = " + log);
+            return log;
+        } else {
+            throw new NotFoundException();
         }
     }
 
-    private static void doubleLog(PrintWriter writer, String message) {
-        writer.println(message);
-        writer.flush();
-    }
 
 }
