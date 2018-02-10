@@ -1,8 +1,8 @@
 package com.danielflower.restabuild.build;
 
 import org.apache.commons.exec.*;
+import org.apache.commons.io.output.WriterOutputStream;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jetty.io.WriterOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

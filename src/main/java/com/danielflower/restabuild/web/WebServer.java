@@ -1,98 +1,55 @@
 package com.danielflower.restabuild.web;
 
 import com.danielflower.restabuild.FileSandbox;
-import com.danielflower.restabuild.build.RestaBuildException;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.NCSARequestLog;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.glassfish.jersey.jackson.JacksonFeature;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.ServerProperties;
-import org.glassfish.jersey.servlet.ServletContainer;
+import io.muserver.MuHandler;
+import io.muserver.MuRequest;
+import io.muserver.MuResponse;
+import io.muserver.MuServer;
+import io.muserver.rest.RestHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerResponseContext;
-import javax.ws.rs.container.ContainerResponseFilter;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashMap;
+import static io.muserver.MuServerBuilder.muServer;
 
 public class WebServer implements AutoCloseable {
-    public static final Logger log = LoggerFactory.getLogger(WebServer.class);
+    private static final Logger log = LoggerFactory.getLogger(WebServer.class);
     private int port;
-    private Server jettyServer;
+    private MuServer jettyServer;
     private final FileSandbox fileSandbox;
 
     public WebServer(int port, FileSandbox fileSandbox) {
         this.port = port;
         this.fileSandbox = fileSandbox;
-        jettyServer = new Server(port);
     }
 
     public void start() throws Exception {
-        HandlerList handlers = new HandlerList();
-        handlers.addHandler(createRestService(fileSandbox));
-        jettyServer.setHandler(handlers);
+        jettyServer = muServer()
+            .withHttpConnection(port)
+            .addHandler((request, response) -> {
+                log.info(response.toString());
+                return false;
+            })
+            .addHandler(new CORSFilter())
+            .addHandler(RestHandlerBuilder.create(new BuildResource(fileSandbox)))
+            .start();
 
-        jettyServer.setRequestLog(new NCSARequestLog("access.log"));
 
-        jettyServer.start();
-
-        port = ((ServerConnector) jettyServer.getConnectors()[0]).getLocalPort();
-        log.info("Started web server at " + baseUrl());
-        log.info("POST to " + baseUrl() + "/v1/builds?gitUrl={url} to run a build");
+        log.info("Started web server at " + jettyServer.uri());
+        log.info("POST to " + jettyServer.uri() + "/v1/builds?gitUrl={url} to run a build");
     }
 
-    private Handler createRestService(FileSandbox fileSandbox) {
-        ResourceConfig rc = new ResourceConfig();
-        rc.register(new BuildResource(fileSandbox));
-        rc.register(JacksonFeature.class);
-        rc.register(CORSFilter.class);
-        rc.addProperties(new HashMap<String,Object>() {{
-            // Turn off buffering so results can be streamed
-            put(ServerProperties.OUTBOUND_CONTENT_LENGTH_BUFFER, 0);
-        }});
-
-        ServletHolder holder = new ServletHolder(new ServletContainer(rc));
-
-        ServletContextHandler sch = new ServletContextHandler();
-        sch.setContextPath("/");
-        sch.addServlet(holder, "/*");
-
-        return sch;
-    }
-
-    public static class CORSFilter implements ContainerResponseFilter {
+    private static class CORSFilter implements MuHandler {
         @Override
-        public void filter(ContainerRequestContext request,
-                           ContainerResponseContext response) throws IOException {
-            response.getHeaders().add("Access-Control-Allow-Origin", "*");
-            response.getHeaders().add("Access-Control-Allow-Headers",
-                "origin, content-type, accept, authorization");
-            response.getHeaders().add("Access-Control-Allow-Credentials", "true");
-            response.getHeaders().add("Access-Control-Allow-Methods",
-                "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+        public boolean handle(MuRequest request, MuResponse response) throws Exception {
+            response.headers().add("Access-Control-Allow-Origin", "*");
+            response.headers().add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
+            response.headers().add("Access-Control-Allow-Credentials", "true");
+            response.headers().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+            return false;
         }
     }
 
     public void close() throws Exception {
         jettyServer.stop();
-        jettyServer.join();
-        jettyServer.destroy();
-    }
-
-    public URL baseUrl() {
-        try {
-            return new URL("http", "localhost", port, "");
-        } catch (MalformedURLException e) {
-            throw new RestaBuildException(e);
-        }
     }
 }

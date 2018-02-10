@@ -39,26 +39,25 @@ public class BuildResource {
 
         @Override
         public void write(OutputStream output) throws IOException, WebApplicationException {
-            try (Writer writer = new OutputStreamWriter(output)) {
+            try (PrintWriter writer = new PrintWriter(output)) {
                 try {
                     ProjectManager manager = ProjectManager.create(gitUrl, fileSandbox);
                     doubleLog(writer, "Fetching from git...");
-                    File buildDir = manager.pullFromGitAndCopyWorkingCopyToNewDir();
+                    File buildDir = manager.pullFromGitAndCopyWorkingCopyToNewDir(writer);
                     doubleLog(writer, "Working copy is at " + dirPath(buildDir));
                     manager.build(writer);
 
                     doubleLog(writer, "Successfully built " + gitUrl);
                 } catch (Exception e) {
                     log.error("Error while building " + gitUrl, e);
-                    writer.write("Error while building: " + e);
-                    throw new WebApplicationException("Error while building " + gitUrl, e);
+                    doubleLog(writer,"Error while building: " + e);
                 }
             }
         }
     }
 
-    private static void doubleLog(Writer writer, String message) throws IOException {
-        writer.write(message);
+    private static void doubleLog(PrintWriter writer, String message) {
+        writer.println(message);
         writer.flush();
     }
 

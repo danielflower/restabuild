@@ -10,6 +10,7 @@ import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +66,7 @@ public class ProjectManager {
 
     public BuildResult build(Writer outputHandler) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
-        File id = pullFromGitAndCopyWorkingCopyToNewDir();
+        File id = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
         doubleLog(outputHandler, "Created new instance in " + dirPath(id));
 
         CommandLine command = new CommandLine(buildCommand(id));
@@ -82,8 +83,8 @@ public class ProjectManager {
         return f;
     }
 
-    public File pullFromGitAndCopyWorkingCopyToNewDir() throws GitAPIException, IOException {
-        git.fetch().setRemote("origin").call();
+    public File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
+        git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
         git.reset().setMode(ResetCommand.ResetType.HARD).setRef("origin/master").call();
         return copyToNewInstanceDir();
     }
