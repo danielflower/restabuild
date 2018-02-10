@@ -12,7 +12,7 @@ import static com.danielflower.restabuild.Config.SERVER_PORT;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class App {
-    public static final Logger log = LoggerFactory.getLogger(App.class);
+    private static final Logger log = LoggerFactory.getLogger(App.class);
     private final Config config;
     private WebServer webServer;
 
@@ -20,7 +20,7 @@ public class App {
         this.config = config;
     }
 
-    public void start() throws Exception {
+    public void start() {
         File dataDir = config.getOrCreateDir(Config.DATA_DIR);
         FileSandbox fileSandbox = new FileSandbox(dataDir);
 
@@ -28,8 +28,7 @@ public class App {
 
         int appRunnerPort = config.getInt(SERVER_PORT);
 
-        webServer = new WebServer(appRunnerPort, fileSandbox);
-        webServer.start();
+        webServer = WebServer.start(appRunnerPort, fileSandbox);
     }
 
     private void deleteOldTempFiles(File tempDir) {
