@@ -93,14 +93,18 @@ public class BuildResource {
     @GET
     @Path("{id}/log")
     @Produces(MediaType.TEXT_PLAIN)
-    public void getLog(@PathParam("id") String id, @Context MuResponse resp) throws IOException {
+    public void getLog(@PathParam("id") String id, @Context MuResponse resp, @Context UriInfo uriInfo) throws IOException {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             BuildResult result = br.get();
             resp.contentType(MediaType.TEXT_PLAIN);
+            JSONObject jsonObject = jsonForResult(uriInfo.getRequestUriBuilder().replacePath(uriInfo.getPath().replace("/log", "")), result);
+            String header = jsonObject.toString(4) + "\n\n";
             if (result.hasFinished()) {
-                resp.write(result.log());
+                resp.write(header + result.log());
             } else {
+
+                resp.sendChunk(header);
 
                 // HACK forces some buffer somewhere to trip and so the browser renders immediately
                 resp.sendChunk("*...................................................................................................*" +
@@ -113,7 +117,7 @@ public class BuildResource {
                     "...................................................................................................*" +
                     "...................................................................................................*" +
                     "...................................................................................................*" +
-                    "...................................................................................................*");
+                    "...................................................................................................*\n\n");
 
                 result.streamLog(resp::sendChunk);
                 while (!result.hasFinished()) {
@@ -128,6 +132,4 @@ public class BuildResource {
             throw new NotFoundException();
         }
     }
-
-
 }

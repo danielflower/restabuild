@@ -60,7 +60,7 @@ public class BuildResult {
         try (FileWriter logFileWriter = new FileWriter(buildLogFile)) {
             Writer writer = new MultiWriter(logFileWriter);
 
-            ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox);
+            ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
             state = pm.build(writer);
 
             FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);

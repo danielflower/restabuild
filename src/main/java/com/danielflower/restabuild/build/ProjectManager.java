@@ -6,9 +6,9 @@ import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.slf4j.Logger;
@@ -24,7 +24,7 @@ import static com.danielflower.restabuild.FileSandbox.dirPath;
 public class ProjectManager {
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
 
-    public static ProjectManager create(String gitUrl, FileSandbox fileSandbox) {
+    public static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
@@ -32,35 +32,45 @@ public class ProjectManager {
         Git git;
         try {
             try {
-                log.info("Using existing git repo at " + dirPath(gitDir));
                 git = Git.open(gitDir);
+                log.info("Using existing git repo at " + dirPath(gitDir));
             } catch (RepositoryNotFoundException e) {
                 log.info("Cloning " + gitUrl + " to " + dirPath(gitDir));
                 git = Git.cloneRepository()
+                    .setProgressMonitor(new TextProgressMonitor(writer))
                     .setURI(gitUrl)
-                    .setBare(false)
+                    .setBare(true)
                     .setDirectory(gitDir)
                     .call();
             }
         } catch (IOException | GitAPIException e) {
             throw new RestaBuildException("Could not open or create git repo at " + gitDir, e);
         }
-        StoredConfig config = git.getRepository().getConfig();
-        config.setString("remote", "origin", "url", gitUrl);
+
+        setRemoteOriginUrl(git.getRepository(), gitUrl);
+        return new ProjectManager(git, instanceDir, gitUrl, gitDir);
+    }
+
+    private static void setRemoteOriginUrl(Repository repository, String originUrl) {
+        StoredConfig config = repository.getConfig();
+        config.setString("remote", "origin", "url", originUrl);
         try {
             config.save();
         } catch (IOException e) {
-            throw new RestaBuildException("Error while setting remote on Git repo at " + dirPath(gitDir), e);
+            throw new RestaBuildException("Error while setting remote on Git repo at " + repository, e);
         }
-        return new ProjectManager(git, instanceDir);
     }
 
     private final Git git;
     private final File instanceDir;
+    private final String gitUrl;
+    private final File repoDir;
 
-    private ProjectManager(Git git, File instanceDir) {
+    private ProjectManager(Git git, File instanceDir, String gitUrl, File repoDir) {
         this.git = git;
         this.instanceDir = instanceDir;
+        this.gitUrl = gitUrl;
+        this.repoDir = repoDir;
     }
 
 
@@ -89,16 +99,20 @@ public class ProjectManager {
 
     private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
-        git.reset().setMode(ResetCommand.ResetType.HARD).setRef("origin/master").call();
         return copyToNewInstanceDir();
     }
 
-    private File copyToNewInstanceDir() throws IOException {
+    private File copyToNewInstanceDir() throws GitAPIException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
             throw new RuntimeException("Could not create " + dirPath(dest));
         }
-        FileUtils.copyDirectory(git.getRepository().getWorkTree(), dest, pathname -> !pathname.getName().equals(".git"));
+        Git copy = Git.cloneRepository()
+            .setURI(repoDir.toURI().toString())
+            .setBare(false)
+            .setDirectory(dest)
+            .call();
+        setRemoteOriginUrl(copy.getRepository(), gitUrl);
         return dest;
     }
 
