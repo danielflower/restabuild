@@ -1,3 +1,3 @@
 
 call mvn --version
-call mvn releaser:release
+call mvn package

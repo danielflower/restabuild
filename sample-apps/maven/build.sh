@@ -3,4 +3,4 @@
 set -e
 
 mvn --version
-mvn releaser:release
+mvn package
