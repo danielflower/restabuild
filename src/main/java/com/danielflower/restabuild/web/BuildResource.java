@@ -28,7 +28,6 @@ public class BuildResource {
 
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    @Produces(MediaType.APPLICATION_JSON)
     public Response create(@FormParam("gitUrl") String gitUrl,
                            @FormParam("responseType") @DefaultValue("json") String responseType,
                            @Context UriInfo uriInfo) {
@@ -38,6 +37,7 @@ public class BuildResource {
         Response.ResponseBuilder responseBuilder;
         if (responseType.equals("json")) {
             responseBuilder = Response.created(buildPath.build())
+                .header("Content-Type", MediaType.APPLICATION_JSON)
                 .entity(getJson(result.id, buildPath));
         } else {
             responseBuilder = Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build());

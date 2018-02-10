@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta charset="UTF-8">
     <title>Restabuild</title>
     <style>
@@ -22,15 +23,32 @@
 <h1>Restabuild</h1>
 <p>The world's simplest build server</p>
 
-<form action="/restabuild/api/v1/builds" method="post">
+<form id="createForm" action="/restabuild/api/v1/builds" method="post">
     <input type="hidden" name="responseType" value="html">
     <label>
         Git URL:
-        <input type="text" name="gitUrl" required value="git@github.com:3redronin/mu-server-sample.git">
+        <input type="text" id="gitUrlBox" name="gitUrl" required value="git@github.com:3redronin/mu-server-sample.git">
     </label>
     <input type="submit" value="Run build">
 </form>
 
+<p>...or use curl: <code id="curlCommand">curl</code></p>
 
 </body>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var cc = document.getElementById('curlCommand');
+        var form = document.getElementById('createForm');
+        var urlBox = document.getElementById('gitUrlBox');
+        var update = function () {
+            var value = urlBox.value;
+            cc.textContent = 'curl -X POST -d \'gitUrl=' + encodeURIComponent(value)
+                + '\' -H \'Content-Type: application/x-www-form-urlencoded\' '
+                + form.action;
+        };
+        urlBox.addEventListener('input', update);
+        update();
+
+    });
+</script>
 </html>
