@@ -3,7 +3,6 @@ package com.danielflower.restabuild.build;
 import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -90,7 +89,7 @@ public class ProjectManager {
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
             result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
         }
-        FileUtils.deleteQuietly(workDir);
+//        FileUtils.deleteQuietly(workDir);
 
         return result;
     }
