@@ -35,7 +35,6 @@ public class WebServer implements AutoCloseable {
             .start();
 
         log.info("Started web server at " + server.uri());
-        log.info("POST to " + server.uri() + "/v1/builds?gitUrl={url} to run a build");
         return new WebServer(server);
     }
 

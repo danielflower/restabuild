@@ -7,11 +7,14 @@ import com.danielflower.restabuild.build.BuildResult;
 import com.danielflower.restabuild.build.GitRepo;
 import io.muserver.HeaderNames;
 import io.muserver.HeaderValues;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Path("/restabuild/api/v1/builds")
 public class BuildResource {
@@ -38,7 +41,7 @@ public class BuildResource {
         if (responseType.equals("json")) {
             responseBuilder = Response.created(buildPath.build())
                 .header("Content-Type", MediaType.APPLICATION_JSON)
-                .entity(getJson(result.id, buildPath));
+                .entity(jsonForResult(buildPath, result));
         } else {
             responseBuilder = Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build());
         }
@@ -60,22 +63,30 @@ public class BuildResource {
     }
 
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public String getAll(@Context UriInfo uriInfo) {
+        UriBuilder uriBuilder = uriInfo.getRequestUriBuilder();
+        JSONObject result = new JSONObject()
+            .put("builds", new JSONArray(database.all().stream().map(br -> jsonForResult(uriBuilder.path(br.id), br)).collect(Collectors.toList())));
+        return result.toString(4);
+    }
+
+    @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public String get(@PathParam("id") String id, @Context UriInfo uriInfo) {
-        return getJson(id, uriInfo.getRequestUriBuilder());
-    }
-
-    private String getJson(String id, UriBuilder requestUriBuilder) {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
-            return br.get().toJson()
-                .put("url", requestUriBuilder.build())
-                .put("logUrl", requestUriBuilder.path("log").build().toString())
-                .toString(4);
+            return jsonForResult(uriInfo.getRequestUriBuilder(), br.get()).toString(4);
         } else {
             throw new NotFoundException();
         }
+    }
+
+    private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
+        return result.toJson()
+            .put("url", resourcePath.build())
+            .put("logUrl", resourcePath.path("log").build().toString());
     }
 
     @GET
@@ -84,9 +95,7 @@ public class BuildResource {
     public String getLog(@PathParam("id") String id) throws IOException {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
-            String log = br.get().log();
-            System.out.println("log = " + log);
-            return log;
+            return br.get().log();
         } else {
             throw new NotFoundException();
         }
