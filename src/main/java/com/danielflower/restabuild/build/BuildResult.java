@@ -3,10 +3,11 @@ package com.danielflower.restabuild.build;
 import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -57,14 +58,14 @@ public class BuildResult {
     public void run() throws Exception {
 
         state = BuildState.IN_PROGRESS;
-        try (FileWriter logFileWriter = new FileWriter(buildLogFile)) {
-            Writer writer = new MultiWriter(logFileWriter);
-
+        try (FileWriter logFileWriter = new FileWriter(buildLogFile);
+             Writer writer = new MultiWriter(logFileWriter)) {
             ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
             state = pm.build(writer);
-
-            FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            state = BuildState.FAILURE;
         } finally {
+            FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
             buildLog = null;
         }
     }
@@ -73,13 +74,13 @@ public class BuildResult {
         writer.onString(log());
         logListeners.add(writer);
     }
+
     public void stopListening(StringListener writer) {
         logListeners.remove(writer);
     }
 
 
     private class MultiWriter extends Writer {
-        private final Logger log = LoggerFactory.getLogger(MultiWriter.class);
         private final FileWriter logFileWriter;
 
         MultiWriter(FileWriter logFileWriter) {

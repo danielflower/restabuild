@@ -79,10 +79,17 @@ public class ProjectManager {
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
-        CommandLine command = new CommandLine(buildCommand(workDir));
-        ProcessStarter processStarter = new ProcessStarter(outputHandler);
-        BuildState result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
-
+        String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
+        File f = new File(workDir, buildFile);
+        BuildState result;
+        if (!f.isFile()) {
+            outputHandler.write("Please place a file called " + buildFile + " in the root of your repo");
+            result = BuildState.FAILURE;
+        } else {
+            CommandLine command = new CommandLine(f);
+            ProcessStarter processStarter = new ProcessStarter(outputHandler);
+            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
+        }
         FileUtils.deleteQuietly(workDir);
 
         return result;
