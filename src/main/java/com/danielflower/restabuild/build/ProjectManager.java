@@ -25,7 +25,7 @@ public class ProjectManager {
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
 
     public static ProjectManager create(String gitUrl, FileSandbox fileSandbox) {
-        String buildId = DigestUtils.shaHex(gitUrl);
+        String buildId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(buildId);
         File instanceDir = fileSandbox.tempDir(buildId + File.separator + "instances");
 
@@ -92,14 +92,14 @@ public class ProjectManager {
     private File copyToNewInstanceDir() throws IOException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
-            throw new RestaBuildException("Could not create " + dirPath(dest));
+            throw new RuntimeException("Could not create " + dirPath(dest));
         }
         FileUtils.copyDirectory(git.getRepository().getWorkTree(), dest, pathname -> !pathname.getName().equals(".git"));
         return dest;
     }
 
 
-    private static void doubleLog(Writer writer, String message) throws IOException {
+    private static void doubleLog(Writer writer, String message) {
         log.info(message);
         ProcessStarter.writeLine(writer, message);
     }

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
@@ -16,7 +17,7 @@ public class ProcessStarter {
     private static final Logger log = LoggerFactory.getLogger(ProcessStarter.class);
     private final Writer outputHandler;
 
-    public ProcessStarter(Writer outputHandler) {
+    ProcessStarter(Writer outputHandler) {
         this.outputHandler = outputHandler;
     }
 
@@ -71,7 +72,7 @@ public class ProcessStarter {
         Executor executor = new DefaultExecutor();
         executor.setWorkingDirectory(projectRoot);
         executor.setWatchdog(watchDog);
-        executor.setStreamHandler(new PumpStreamHandler(new WriterOutputStream(consoleLogHandler)));
+        executor.setStreamHandler(new PumpStreamHandler(new WriterOutputStream(consoleLogHandler, StandardCharsets.UTF_8, 1024, true)));
         writeLine(consoleLogHandler, dirPath(executor.getWorkingDirectory()) + "> " + String.join(" ", command.toStrings()) + "\n");
         return executor;
     }

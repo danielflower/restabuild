@@ -28,7 +28,7 @@ public class FileSandbox {
         return ensureExists("temp/" + name + "/" + System.currentTimeMillis());
     }
     public File repoDir(String gitUrl) {
-        return ensureExists("repos/" + DigestUtils.shaHex(gitUrl));
+        return ensureExists("repos/" + DigestUtils.sha1Hex(gitUrl));
     }
 
     private File ensureExists(String relativePath) {

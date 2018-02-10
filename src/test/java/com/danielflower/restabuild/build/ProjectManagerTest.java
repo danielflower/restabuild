@@ -9,6 +9,7 @@ import scaffolding.TestConfig;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -38,7 +39,7 @@ public class ProjectManagerTest {
 
     private static void breakTheProject(AppRepo appRepo) throws IOException, GitAPIException {
         File pom = new File(appRepo.originDir, "pom.xml");
-        FileUtils.write(pom, "I am a corrupt pom");
+        FileUtils.write(pom, "I am a corrupt pom", StandardCharsets.UTF_8);
         appRepo.origin.add().addFilepattern(".").call();
         appRepo.origin.commit().setMessage("Breaking the build").call();
     }
