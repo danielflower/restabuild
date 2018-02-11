@@ -4,10 +4,7 @@ import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -29,7 +26,6 @@ public class BuildResult {
         this.gitRepo = gitRepo;
         this.buildDir = sandbox.buildDir(id);
         buildLogFile = new File(buildDir, "build.log");
-
     }
 
     public boolean hasFinished() {
@@ -60,10 +56,14 @@ public class BuildResult {
         BuildState newState = state = BuildState.IN_PROGRESS;
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
-            ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-            newState = pm.build(writer);
-        } catch (Exception ex) {
-            newState = BuildState.FAILURE;
+            try {
+                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
+                newState = pm.build(writer);
+            } catch (Exception ex) {
+                writer.write("\n\nERROR: " + ex.getMessage());
+                ex.printStackTrace(new PrintWriter(writer));
+                newState = BuildState.FAILURE;
+            }
         } finally {
             FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
             synchronized (lock) {

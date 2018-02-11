@@ -1,6 +1,7 @@
 package com.danielflower.restabuild.build;
 
 import com.danielflower.restabuild.FileSandbox;
+import com.jcraft.jsch.JSch;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
@@ -22,6 +23,9 @@ import java.util.concurrent.TimeUnit;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
 public class ProjectManager {
+    static {
+        JSch.setConfig("StrictHostKeyChecking", "no");
+    }
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
 
     public static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
@@ -98,14 +102,6 @@ public class ProjectManager {
         return result;
     }
 
-    private File buildCommand(File projectRoot) {
-        String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
-        File f = new File(projectRoot, buildFile);
-        if (!f.isFile()) {
-            throw new RestaBuildException("Please place a file called " + buildFile + " in the root of your repo");
-        }
-        return f;
-    }
 
     private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
