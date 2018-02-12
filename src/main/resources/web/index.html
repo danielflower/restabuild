@@ -26,8 +26,8 @@
 <p>The world's simplest build server</p>
 
 <h2>Submit a build</h2>
-<p>Enter the URL of your git repo that has a <code>build.sh</code> or <code>build.bat</code> file in the root of the
-    directory.</p>
+<p>Enter the URL of your git repo that has a <code>build.sh</code> file in the root of the directory. Tip: make the
+script executable with <code>git update-index --chmod=+x build.sh</code></p>
 <form id="createForm" action="/restabuild/api/v1/builds" method="post">
     <input type="hidden" name="responseType" value="html">
     <label>
