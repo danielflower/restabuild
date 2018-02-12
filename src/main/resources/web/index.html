@@ -28,7 +28,7 @@
     <input type="hidden" name="responseType" value="html">
     <label>
         Git URL:
-        <input type="text" id="gitUrlBox" name="gitUrl" required value="https://github.com/3redronin/mu-server-sample.git">
+        <input type="text" id="gitUrlBox" name="gitUrl" required placeholder="https://github.com/3redronin/mu-server-sample.git">
     </label>
     <input type="submit" value="Run build">
 </form>
@@ -47,7 +47,7 @@
         var form = document.getElementById('createForm');
         var urlBox = document.getElementById('gitUrlBox');
         var update = function () {
-            var value = urlBox.value;
+            var value = urlBox.value || 'URL-Encoded-Git-URL';
             cc.textContent = 'curl -X POST -d \'gitUrl=' + encodeURIComponent(value)
                 + '\' -H \'Content-Type: application/x-www-form-urlencoded\' '
                 + form.action;
