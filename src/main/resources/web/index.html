@@ -6,13 +6,15 @@
     <title>Restabuild</title>
     <style>
         body {
-            font-family: Arial,serif;
+            font-family: Arial, serif;
         }
+
         input[type=text] {
             display: block;
             width: 95%;
             margin: 10px 0;
         }
+
         input[type=submit] {
             padding: 10px;
             font-weight: bold;
@@ -24,13 +26,16 @@
 <p>The world's simplest build server</p>
 
 <h2>Submit a build</h2>
+<p>Enter the URL of your git repo that has a <code>build.sh</code> or <code>build.bat</code> file in the root of the
+    directory.</p>
 <form id="createForm" action="/restabuild/api/v1/builds" method="post">
     <input type="hidden" name="responseType" value="html">
     <label>
         Git URL:
-        <input type="text" id="gitUrlBox" name="gitUrl" required placeholder="https://github.com/3redronin/mu-server-sample.git">
+        <input type="text" id="gitUrlBox" name="gitUrl" required
+               placeholder="https://github.com/3redronin/mu-server-sample.git">
     </label>
-    <input type="submit" value="Run build">
+    <input type="submit" value="Run build" id="submitButton">
 </form>
 
 <p>...or use curl:</p>
@@ -46,14 +51,24 @@
         var cc = document.getElementById('curlCommand');
         var form = document.getElementById('createForm');
         var urlBox = document.getElementById('gitUrlBox');
+
+        if ('URLSearchParams' in window) {
+            var qs = new URLSearchParams(location.search);
+            urlBox.value = qs.get('url');
+        }
+
         var update = function () {
-            var value = urlBox.value || 'URL-Encoded-Git-URL';
-            cc.textContent = 'curl -X POST -d \'gitUrl=' + encodeURIComponent(value)
+            var value = urlBox.value;
+            cc.textContent = 'curl -X POST -d \'gitUrl=' + encodeURIComponent(value || 'URL-Encoded-Git-URL')
                 + '\' -H \'Content-Type: application/x-www-form-urlencoded\' '
                 + form.action;
+            history.replaceState(null, null, value ? '/restabuild/?url=' + encodeURIComponent(value) : '/restabuild/');
         };
         urlBox.addEventListener('input', update);
         update();
+        form.addEventListener('submit', function () {
+            document.getElementById('submitButton').disabled = true;
+        });
 
     });
 </script>
