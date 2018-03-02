@@ -16,25 +16,24 @@ public class WebServer implements AutoCloseable {
         this.server = server;
     }
 
-    public static WebServer start(int port, BuildResource buildResource) {
+    public static WebServer start(int port, String context, BuildResource buildResource) {
         MuServer server = muServer()
             .withHttpConnection(port)
             .addHandler((request, response) -> {
                 log.info(request.toString());
                 if (request.uri().getPath().equals("/")) {
-                    response.redirect("/restabuild/");
+                    response.redirect("/" + context + "/");
                     return true;
                 }
                 return false;
             })
-            .addHandler(new CORSFilter())
-            .addHandler(ResourceHandler
-                .fileOrClasspath("src/main/resources/web", "/web")
-                .withPathToServeFrom("/restabuild"))
-            .addHandler(RestHandlerBuilder.create(buildResource))
+            .addHandler(ContextHandlerBuilder.context(context,
+                new CORSFilter(),
+                RestHandlerBuilder.create(buildResource),
+                ResourceHandler.fileOrClasspath("src/main/resources/web", "/web").build()))
             .start();
 
-        log.info("Started web server at " + server.uri());
+        log.info("Started web server at " + server.uri().resolve("/" + context + "/"));
         return new WebServer(server);
     }
 

@@ -4,6 +4,7 @@ import com.danielflower.restabuild.build.BuildDatabase;
 import com.danielflower.restabuild.build.BuildQueue;
 import com.danielflower.restabuild.web.BuildResource;
 import com.danielflower.restabuild.web.WebServer;
+import io.muserver.Mutils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,8 @@ public class App {
         buildQueue.start();
 
         BuildResource buildResource = new BuildResource(fileSandbox, buildQueue, database);
-        webServer = WebServer.start(appRunnerPort, buildResource);
+        String context = Mutils.trim(config.get(Config.CONTEXT, "restabuild"), "/");
+        webServer = WebServer.start(appRunnerPort, context, buildResource);
     }
 
     private void deleteOldTempFiles(File tempDir) {

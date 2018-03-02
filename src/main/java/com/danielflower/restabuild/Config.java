@@ -16,6 +16,7 @@ import static com.danielflower.restabuild.FileSandbox.dirPath;
 public class Config {
     static final String SERVER_PORT = "restabuild.port";
     public static final String DATA_DIR = "restabuild.data";
+    public static final String CONTEXT = "restabuild.context";
     public static final String CONCURRENT_BUILDS = "restabuild.concurrent.builds";
 
     public static Config load(String[] commandLineArgs) throws IOException {
@@ -45,7 +46,7 @@ public class Config {
         this.raw = raw;
     }
 
-    private String get(String name, String defaultVal) {
+    public String get(String name, String defaultVal) {
         return raw.getOrDefault(name, defaultVal);
     }
 

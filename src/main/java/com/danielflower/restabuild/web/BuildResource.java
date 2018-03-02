@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Path("/restabuild/api/v1/builds")
+@Path("api/v1/builds")
 public class BuildResource {
 
     private final FileSandbox fileSandbox;
