@@ -6,6 +6,7 @@ import io.muserver.rest.RestHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
 
 public class WebServer implements AutoCloseable {
@@ -27,10 +28,11 @@ public class WebServer implements AutoCloseable {
                 }
                 return false;
             })
-            .addHandler(ContextHandlerBuilder.context(context,
-                new CORSFilter(),
-                RestHandlerBuilder.create(buildResource),
-                ResourceHandler.fileOrClasspath("src/main/resources/web", "/web").build()))
+            .addHandler(
+                context(context)
+                    .addHandler(new CORSFilter())
+                    .addHandler(RestHandlerBuilder.create(buildResource))
+                    .addHandler(ResourceHandler.fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 
         log.info("Started web server at " + server.uri().resolve("/" + context + "/"));
