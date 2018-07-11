@@ -1,13 +1,13 @@
 package com.danielflower.restabuild.web;
 
 import io.muserver.*;
-import io.muserver.handlers.ResourceHandler;
-import io.muserver.rest.RestHandlerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
+import static io.muserver.handlers.ResourceHandlerBuilder.fileOrClasspath;
+import static io.muserver.rest.RestHandlerBuilder.restHandler;
 
 public class WebServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(WebServer.class);
@@ -19,7 +19,7 @@ public class WebServer implements AutoCloseable {
 
     public static WebServer start(int port, String context, BuildResource buildResource) {
         MuServer server = muServer()
-            .withHttpConnection(port)
+            .withHttpPort(port)
             .addHandler((request, response) -> {
                 log.info(request.toString());
                 if (request.uri().getPath().equals("/")) {
@@ -31,8 +31,8 @@ public class WebServer implements AutoCloseable {
             .addHandler(
                 context(context)
                     .addHandler(new CORSFilter())
-                    .addHandler(RestHandlerBuilder.create(buildResource))
-                    .addHandler(ResourceHandler.fileOrClasspath("src/main/resources/web", "/web")))
+                    .addHandler(restHandler(buildResource))
+                    .addHandler(fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 
         log.info("Started web server at " + server.uri().resolve("/" + context + "/"));
