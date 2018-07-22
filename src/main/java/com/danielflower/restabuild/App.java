@@ -31,7 +31,7 @@ public class App {
         return webServer.server.uri();
     }
 
-    public void start() {
+    public void start() throws IOException {
         File dataDir = config.getOrCreateDir(Config.DATA_DIR);
         FileSandbox fileSandbox = new FileSandbox(dataDir);
 

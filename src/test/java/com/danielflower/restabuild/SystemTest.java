@@ -42,7 +42,7 @@ public class SystemTest {
         AppRepo appRepo = AppRepo.create("maven");
 
         ContentResponse response = createBuild(appRepo);
-        assertThat(response.getStatus(), equalTo(201));
+        assertThat(response.getStatus(), equalTo(303));
         JSONObject build = new JSONObject(response.getContentAsString());
 
         System.out.println("build = " + build.toString(4));

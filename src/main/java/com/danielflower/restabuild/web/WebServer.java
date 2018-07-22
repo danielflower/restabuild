@@ -4,9 +4,13 @@ import io.muserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
 import static io.muserver.handlers.ResourceHandlerBuilder.fileOrClasspath;
+import static io.muserver.openapi.InfoObjectBuilder.infoObject;
+import static io.muserver.openapi.OpenAPIObjectBuilder.openAPIObject;
 import static io.muserver.rest.RestHandlerBuilder.restHandler;
 
 public class WebServer implements AutoCloseable {
@@ -17,7 +21,7 @@ public class WebServer implements AutoCloseable {
         this.server = server;
     }
 
-    public static WebServer start(int port, String context, BuildResource buildResource) {
+    public static WebServer start(int port, String context, BuildResource buildResource) throws IOException {
         MuServer server = muServer()
             .withHttpPort(port)
             .addHandler((request, response) -> {
@@ -31,7 +35,18 @@ public class WebServer implements AutoCloseable {
             .addHandler(
                 context(context)
                     .addHandler(new CORSFilter())
-                    .addHandler(restHandler(buildResource))
+                    .addHandler(restHandler(buildResource)
+                        .withOpenApiJsonUrl("/openapi.json")
+                        .withOpenApiHtmlUrl("/api.html")
+                        .withOpenApiDocument(
+                            openAPIObject()
+                            .withInfo(infoObject()
+                                .withTitle("Restabuild API")
+                                .withDescription("An API to queue and interact with builds.")
+                                .build())
+                        )
+                    )
+                    .addHandler(Method.GET, "/", new IndexHtmlHandler())
                     .addHandler(fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 

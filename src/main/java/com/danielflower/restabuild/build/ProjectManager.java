@@ -27,8 +27,10 @@ public class ProjectManager {
         JSch.setConfig("StrictHostKeyChecking", "no");
     }
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
+    public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
 
-    public static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
+
+    static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
@@ -83,14 +85,20 @@ public class ProjectManager {
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
-        String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
         File f = new File(workDir, buildFile);
         BuildState result;
         if (!f.isFile()) {
             outputHandler.write("Please place a file called " + buildFile + " in the root of your repo");
             result = BuildState.FAILURE;
         } else {
-            CommandLine command = new CommandLine(f);
+            CommandLine command;
+            if (SystemUtils.IS_OS_WINDOWS) {
+                command = new CommandLine(f);
+            } else {
+                command = new CommandLine("bash")
+                .addArgument("-x")
+                .addArgument(f.getName());
+            }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
             result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
         }

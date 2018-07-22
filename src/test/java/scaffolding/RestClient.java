@@ -8,6 +8,7 @@ public class RestClient {
 
     private static HttpClient create() {
         HttpClient c = new HttpClient();
+        c.setFollowRedirects(false);
         try {
             c.start();
             return c;

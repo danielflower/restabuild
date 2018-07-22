@@ -19,6 +19,11 @@
             padding: 10px;
             font-weight: bold;
         }
+
+        footer {
+            margin-top: 50px;
+            font-size: smaller;
+        }
     </style>
 </head>
 <body>
@@ -26,10 +31,8 @@
 <p>The world's simplest build server</p>
 
 <h2>Submit a build</h2>
-<p>Enter the URL of your git repo that has a <code>build.sh</code> file in the root of the directory. Tip: make the
-script executable with <code>git update-index --chmod=+x build.sh</code></p>
+<p>Enter the URL of your git repo that has a <code>{{buildfilename}}</code> file in the root of the directory.</p>
 <form id="createForm" action="api/v1/builds" method="post">
-    <input type="hidden" name="responseType" value="html">
     <label>
         Git URL:
         <input type="text" id="gitUrlBox" name="gitUrl" required
@@ -43,8 +46,12 @@ script executable with <code>git update-index --chmod=+x build.sh</code></p>
 
 <h2>View builds</h2>
 
-<p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a></p>
+<p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a> or see <a href="api.html">API documentation</a>.</p>
 
+
+<footer>
+    Restabuild version {{restabuildversion}}
+</footer>
 </body>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -62,9 +69,7 @@ script executable with <code>git update-index --chmod=+x build.sh</code></p>
 
         var update = function () {
             var value = urlBox.value;
-            cc.textContent = 'curl -X POST -d \'gitUrl=' + encodeURIComponent(value || 'URL-Encoded-Git-URL')
-                + '\' -H \'Content-Type: application/x-www-form-urlencoded\' '
-                + form.action;
+            cc.textContent = 'curl -Ls -F \'gitUrl=' + (value || 'git-url') + '\' ' + form.action;
             history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
         };
         urlBox.addEventListener('input', update);

@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,6 +21,9 @@ public class BuildResult {
     private volatile StringBuffer buildLog = new StringBuffer();
     private File buildLogFile;
     private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
+    private final long queueStart = System.currentTimeMillis();
+    private long buildStart = -1;
+    private long buildComplete = -1;
 
     public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
         this.sandbox = sandbox;
@@ -46,14 +50,23 @@ public class BuildResult {
     }
 
     public JSONObject toJson() {
-        return new JSONObject()
+        long queueDuration = buildStart < 0 ? (System.currentTimeMillis() - queueStart) : (buildStart - queueStart);
+        JSONObject build = new JSONObject()
             .put("id", id)
             .put("gitUrl", gitRepo.url)
-            .put("status", state.name());
+            .put("status", state.name())
+            .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
+            .put("queueDurationMillis", queueDuration);
+        if (buildStart > 0) {
+            long buildDuration = buildComplete < 0 ? (System.currentTimeMillis() - buildStart) : (buildComplete - buildStart);
+            build.put("buildDurationMillis", buildDuration);
+        }
+        return build;
     }
 
     public void run() throws Exception {
         BuildState newState = state = BuildState.IN_PROGRESS;
+        buildStart = System.currentTimeMillis();
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
@@ -65,6 +78,7 @@ public class BuildResult {
                 newState = BuildState.FAILURE;
             }
         } finally {
+            buildComplete = System.currentTimeMillis();
             FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
             synchronized (lock) {
                 state = newState;
