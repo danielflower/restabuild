@@ -69,7 +69,7 @@
 
         var update = function () {
             var value = urlBox.value;
-            cc.textContent = 'curl -Ls -F \'gitUrl=' + (value || 'git-url') + '\' ' + form.action;
+            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' ' + form.action;
             history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
         };
         urlBox.addEventListener('input', update);

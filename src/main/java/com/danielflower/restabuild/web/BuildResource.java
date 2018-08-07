@@ -113,7 +113,8 @@ public class BuildResource {
         if (br.isPresent()) {
             BuildResult result = br.get();
             resp.contentType(MediaType.TEXT_PLAIN);
-            JSONObject jsonObject = jsonForResult(uriInfo.getRequestUriBuilder().replacePath(uriInfo.getPath().replace("/log", "")), result);
+            UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/log", ""));
+            JSONObject jsonObject = jsonForResult(buildPath, result);
             String header = jsonObject.toString(4) + "\n\n";
             if (result.hasFinished()) {
                 resp.write(header + result.log());
