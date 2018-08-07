@@ -1,10 +1,12 @@
 package com.danielflower.restabuild.web;
 
 import io.muserver.*;
+import io.muserver.rest.CORSConfigBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
@@ -34,8 +36,8 @@ public class WebServer implements AutoCloseable {
             })
             .addHandler(
                 context(context)
-                    .addHandler(new CORSFilter())
                     .addHandler(restHandler(buildResource)
+                        .withCORS(CORSConfigBuilder.corsConfig().withAllowedOriginRegex(Pattern.compile(".*")))
                         .withOpenApiJsonUrl("/openapi.json")
                         .withOpenApiHtmlUrl("/api.html")
                         .withOpenApiDocument(
@@ -54,17 +56,6 @@ public class WebServer implements AutoCloseable {
         return new WebServer(server);
     }
 
-    private static class CORSFilter implements MuHandler {
-        @Override
-        public boolean handle(MuRequest request, MuResponse response) {
-            Headers headers = response.headers();
-            headers.add("Access-Control-Allow-Origin", "*");
-            headers.add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization");
-            headers.add("Access-Control-Allow-Credentials", "true");
-            headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
-            return false;
-        }
-    }
 
     public void close() {
         server.stop();
