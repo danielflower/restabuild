@@ -70,7 +70,7 @@ public class BuildResult {
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
-                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
+                ProjectManager pm = ProjectManager.create(gitRepo.url, gitRepo.branch, sandbox, writer);
                 newState = pm.build(writer);
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());

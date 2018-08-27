@@ -22,7 +22,26 @@ public class ProjectManagerTest {
     @Test
     public void canBuildProjectsAndPickUpChanges() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), "master", TestConfig.testSandbox(), buildLog);
+
+        BuildState result = runner.build(buildLog);
+        assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
+        assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
+
+        breakTheProject(appRepo);
+
+        StringBuilderWriter badBuildLog = new StringBuilderWriter();
+        BuildState result2 = runner.build(badBuildLog);
+        assertThat(buildLog.toString(), result2, is(BuildState.FAILURE));
+        assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
+
+    }
+
+
+    @Test
+    public void canBuildProjectsAndPickUpChangesFromBranch() throws Exception {
+        StringBuilderWriter buildLog = new StringBuilderWriter();
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), "test", TestConfig.testSandbox(), buildLog);
 
         BuildState result = runner.build(buildLog);
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));

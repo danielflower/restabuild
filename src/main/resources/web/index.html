@@ -38,6 +38,10 @@
         <input type="text" id="gitUrlBox" name="gitUrl" required
                placeholder="https://github.com/3redronin/mu-server-sample.git">
     </label>
+    <label>
+        Git Branch:
+        <input type="text" id="branchBox" name="branch"  placeholder="master">
+    </label>
     <input type="submit" value="Run build" id="submitButton">
 </form>
 
@@ -58,6 +62,7 @@
         var cc = document.getElementById('curlCommand');
         var form = document.getElementById('createForm');
         var urlBox = document.getElementById('gitUrlBox');
+        var branchBox = document.getElementById('branchBox');
         var path = location.pathname;
         var apiLink = document.getElementById('apiLink');
         apiLink.textContent = apiLink.href;
@@ -65,11 +70,15 @@
         if ('URLSearchParams' in window) {
             var qs = new URLSearchParams(location.search);
             urlBox.value = qs.get('url');
+            branchBox.value = qs.get('branch') || '';
+
         }
+
 
         var update = function () {
             var value = urlBox.value;
-            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' ' + form.action;
+            var branch = branchBox.value;
+            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + form.action;
             history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
         };
         urlBox.addEventListener('input', update);

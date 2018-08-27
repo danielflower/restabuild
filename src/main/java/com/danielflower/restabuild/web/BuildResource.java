@@ -47,8 +47,9 @@ public class BuildResource {
     @ApiResponse(code = "400", message = "No gitUrl form parameter was specified.", contentType = "text/plain")
     public Response create(@FormParam("gitUrl") @Description(value = "The URL of a git repo that includes a `build.sh` or `build.bat` file. " +
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
+                           @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl);
+        BuildResult result = createInternal(gitUrl, branch);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -58,11 +59,17 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl) {
+    private BuildResult createInternal(String gitUrl, String branch) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
-        GitRepo gitRepo = new GitRepo(gitUrl);
+
+        String gitBranch = branch;
+        if(null == branch || branch.trim().isEmpty()) {
+            gitBranch = "master";
+        }
+
+        GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
         BuildResult result = new BuildResult(fileSandbox, gitRepo);
         database.save(result);
         buildQueue.enqueue(result);

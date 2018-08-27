@@ -6,6 +6,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -30,7 +31,7 @@ public class ProjectManager {
     public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
 
 
-    static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
+    static ProjectManager create(String gitUrl, String branch, FileSandbox fileSandbox, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
@@ -40,11 +41,20 @@ public class ProjectManager {
             try {
                 git = Git.open(gitDir);
                 log.info("Using existing git repo at " + dirPath(gitDir));
+                log.info("switching to branch " + branch);
+                git.checkout()
+                    .setCreateBranch(true)
+                    .setName(branch)
+                    .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK).setStartPoint("origin/" + branch)
+                    .call();
+
+                log.info("switched to branch " + branch);
             } catch (RepositoryNotFoundException e) {
                 log.info("Cloning " + gitUrl + " to " + dirPath(gitDir));
                 git = Git.cloneRepository()
                     .setProgressMonitor(new TextProgressMonitor(writer))
                     .setURI(gitUrl)
+                    .setBranch(branch)
                     .setBare(true)
                     .setDirectory(gitDir)
                     .call();
@@ -57,8 +67,10 @@ public class ProjectManager {
         return new ProjectManager(git, instanceDir, gitUrl, gitDir);
     }
 
+
     private static void setRemoteOriginUrl(Repository repository, String originUrl) {
         StoredConfig config = repository.getConfig();
+
         config.setString("remote", "origin", "url", originUrl);
         try {
             config.save();
