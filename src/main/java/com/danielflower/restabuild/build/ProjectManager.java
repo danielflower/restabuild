@@ -6,6 +6,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -57,8 +58,10 @@ public class ProjectManager {
         return new ProjectManager(git, instanceDir, gitUrl, gitDir);
     }
 
+
     private static void setRemoteOriginUrl(Repository repository, String originUrl) {
         StoredConfig config = repository.getConfig();
+
         config.setString("remote", "origin", "url", originUrl);
         try {
             config.save();
@@ -80,9 +83,9 @@ public class ProjectManager {
     }
 
 
-    public BuildState build(Writer outputHandler) throws Exception {
+    public BuildState build(Writer outputHandler, String branch) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
-        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
+        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
         File f = new File(workDir, buildFile);
@@ -108,21 +111,30 @@ public class ProjectManager {
     }
 
 
-    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
+    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer, String branch) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
-        return copyToNewInstanceDir();
+        return copyToNewInstanceDirAndSwitchBranch(branch);
     }
 
-    private File copyToNewInstanceDir() throws GitAPIException {
+    private File copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
             throw new RuntimeException("Could not create " + dirPath(dest));
         }
         Git copy = Git.cloneRepository()
+            .setBranch(branch)
             .setURI(repoDir.toURI().toString())
             .setBare(false)
             .setDirectory(dest)
             .call();
+
+
+        String currentBranch = copy.getRepository().getBranch();
+        log.info("currently branch {}", currentBranch);
+        if(!branch.equals(currentBranch)) {
+            throw new RuntimeException("Failed to switch to branch " + branch + " the current branch is " + currentBranch);
+        }
+
         setRemoteOriginUrl(copy.getRepository(), gitUrl);
         return dest;
     }
