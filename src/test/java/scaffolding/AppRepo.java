@@ -19,6 +19,12 @@ public class AppRepo {
 
             origin.add().addFilepattern(".").call();
             origin.commit().setMessage("Initial commit").call();
+            origin.branchCreate().setName("branch-1").call();
+
+            origin.branchCreate().setName("branch-2").call();
+            origin.branchCreate().setName("branch-3").call();
+            origin.branchCreate().setName("branch-4").call();
+
 
             return new AppRepo(name, originDir, origin);
         } catch (Exception e) {

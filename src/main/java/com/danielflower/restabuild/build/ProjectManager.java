@@ -31,7 +31,7 @@ public class ProjectManager {
     public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
 
 
-    static ProjectManager create(String gitUrl, String branch, FileSandbox fileSandbox, Writer writer) {
+    static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
@@ -41,20 +41,11 @@ public class ProjectManager {
             try {
                 git = Git.open(gitDir);
                 log.info("Using existing git repo at " + dirPath(gitDir));
-                log.info("switching to branch " + branch);
-                git.checkout()
-                    .setCreateBranch(true)
-                    .setName(branch)
-                    .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK).setStartPoint("origin/" + branch)
-                    .call();
-
-                log.info("switched to branch " + branch);
             } catch (RepositoryNotFoundException e) {
                 log.info("Cloning " + gitUrl + " to " + dirPath(gitDir));
                 git = Git.cloneRepository()
                     .setProgressMonitor(new TextProgressMonitor(writer))
                     .setURI(gitUrl)
-                    .setBranch(branch)
                     .setBare(true)
                     .setDirectory(gitDir)
                     .call();
@@ -92,9 +83,9 @@ public class ProjectManager {
     }
 
 
-    public BuildState build(Writer outputHandler) throws Exception {
+    public BuildState build(Writer outputHandler, String branch) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
-        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler);
+        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
         File f = new File(workDir, buildFile);
@@ -120,21 +111,30 @@ public class ProjectManager {
     }
 
 
-    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer) throws GitAPIException, IOException {
+    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer, String branch) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
-        return copyToNewInstanceDir();
+        return copyToNewInstanceDirAndSwitchBranch(branch);
     }
 
-    private File copyToNewInstanceDir() throws GitAPIException {
+    private File copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
             throw new RuntimeException("Could not create " + dirPath(dest));
         }
         Git copy = Git.cloneRepository()
+            .setBranch(branch)
             .setURI(repoDir.toURI().toString())
             .setBare(false)
             .setDirectory(dest)
             .call();
+
+
+        String currentBranch = copy.getRepository().getBranch();
+        log.info("currently branch {}", currentBranch);
+        if(!branch.equals(currentBranch)) {
+            throw new RuntimeException("Failed to switch to branch " + branch + " the current branch is " + currentBranch);
+        }
+
         setRemoteOriginUrl(copy.getRepository(), gitUrl);
         return dest;
     }

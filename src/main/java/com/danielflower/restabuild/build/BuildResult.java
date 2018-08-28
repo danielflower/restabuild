@@ -54,6 +54,7 @@ public class BuildResult {
         JSONObject build = new JSONObject()
             .put("id", id)
             .put("gitUrl", gitRepo.url)
+            .put("gitBranch", gitRepo.branch)
             .put("status", state.name())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
             .put("queueDurationMillis", queueDuration);
@@ -70,8 +71,8 @@ public class BuildResult {
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
-                ProjectManager pm = ProjectManager.create(gitRepo.url, gitRepo.branch, sandbox, writer);
-                newState = pm.build(writer);
+                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
+                newState = pm.build(writer, gitRepo.branch);
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());
                 ex.printStackTrace(new PrintWriter(writer));
