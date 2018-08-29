@@ -15,6 +15,11 @@
             margin: 10px 0;
         }
 
+
+        #branchBox {
+            width: 30%;
+        }
+
         input[type=submit] {
             padding: 10px;
             font-weight: bold;
@@ -82,6 +87,7 @@
             history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
         };
         urlBox.addEventListener('input', update);
+        branchBox.addEventListener('input', update);
         update();
         form.addEventListener('submit', function () {
             document.getElementById('submitButton').disabled = true;
