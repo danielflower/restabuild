@@ -6,7 +6,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -31,7 +30,7 @@ public class ProjectManager {
     public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
 
 
-    static ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
+    static synchronized ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");

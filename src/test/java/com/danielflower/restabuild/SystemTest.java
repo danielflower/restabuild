@@ -84,8 +84,8 @@ public class SystemTest {
     public void buildLogsAreAvailableInTheAPI() throws Exception {
         AppRepo appRepo = AppRepo.create("maven");
         JSONObject build1 = new JSONObject(createBuild(appRepo).getContentAsString());
-        build1 = waitForBuildToFinish(build1);
         JSONObject build2 = new JSONObject(createBuild(appRepo).getContentAsString());
+        build1 = waitForBuildToFinish(build1);
         build2 = waitForBuildToFinish(build2);
 
         JSONObject api = new JSONObject(
