@@ -1,6 +1,5 @@
 package com.danielflower.restabuild.build;
 
-import junit.framework.TestCase;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.output.StringBuilderWriter;
 import org.eclipse.jgit.api.errors.GitAPIException;
