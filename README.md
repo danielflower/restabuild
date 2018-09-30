@@ -6,9 +6,6 @@ Simply place `build.sh` (or `build.bat` if the build server is Windows) into the
 and then `POST` to `/restabuild/api/v1/builds` with `gitUrl` as a form parameter. The web UI gives
 more detail on the API along with sample curl commands.
 
-**GOTCHA:** The `build.sh` file needs to be committed to git as executable. If it is not, you can
-mark it as executable with `git update-index --chmod=+x build.sh`
-
 Running locally
 ---------------
 

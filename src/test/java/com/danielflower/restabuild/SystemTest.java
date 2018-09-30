@@ -5,6 +5,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.util.Fields;
 import org.hamcrest.Matchers;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -45,22 +46,26 @@ public class SystemTest {
         assertThat(response.getStatus(), equalTo(303));
         JSONObject build = new JSONObject(response.getContentAsString());
 
-        System.out.println("build = " + build.toString(4));
-
         String id = build.getString("id");
         assertThat(id.isEmpty(), is(false));
-        String url = build.getString("url");
-        assertThat(url, equalTo("http://localhost:8080/restabuild/api/v1/builds/" + id));
         String logUrl = build.getString("logUrl");
         assertThat(logUrl, equalTo("http://localhost:8080/restabuild/api/v1/builds/" + id + "/log"));
 
+        assertThat(build.getString("url"),
+            equalTo("http://localhost:8080/restabuild/api/v1/builds/" + build.getString("id")));
+        waitForBuildToFinish(build);
+    }
+
+    private JSONObject waitForBuildToFinish(JSONObject build) throws InterruptedException, ExecutionException, TimeoutException {
+        String url = build.getString("url");
 
         int attempts = 0;
+        JSONObject buildResource;
         while (true) {
-            JSONObject buildResource = new JSONObject(client.GET(url).getContentAsString());
+            buildResource = new JSONObject(client.GET(url).getContentAsString());
             BuildState status = BuildState.valueOf(buildResource.getString("status"));
 
-            assertThat(status, not(equalTo(BuildState.FAILURE)));
+            assertThat(buildResource.toString(), status, not(equalTo(BuildState.FAILURE)));
 
             if (status == BuildState.SUCCESS) {
                 break;
@@ -72,7 +77,25 @@ public class SystemTest {
             Thread.sleep(500);
             attempts++;
         }
+        return buildResource;
+    }
 
+    @Test
+    public void buildLogsAreAvailableInTheAPI() throws Exception {
+        AppRepo appRepo = AppRepo.create("maven");
+        JSONObject build1 = new JSONObject(createBuild(appRepo).getContentAsString());
+        build1 = waitForBuildToFinish(build1);
+        JSONObject build2 = new JSONObject(createBuild(appRepo).getContentAsString());
+        build2 = waitForBuildToFinish(build2);
+
+        JSONObject api = new JSONObject(
+            client.GET("http://localhost:8080/restabuild/api/v1/builds").getContentAsString()
+        );
+
+        JSONArray builds = api.getJSONArray("builds");
+        assertThat(builds.length(), greaterThanOrEqualTo(2));
+        assertThat(build1.toString(4), is(((JSONObject) builds.get(builds.length() - 2)).toString(4)));
+        assertThat(build2.toString(4), is(((JSONObject) builds.get(builds.length() - 1)).toString(4)));
     }
 
 

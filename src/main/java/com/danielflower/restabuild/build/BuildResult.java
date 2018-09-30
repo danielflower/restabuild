@@ -21,7 +21,7 @@ public class BuildResult {
     private volatile StringBuffer buildLog = new StringBuffer();
     private File buildLogFile;
     private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
-    private final long queueStart = System.currentTimeMillis();
+    public final long queueStart = System.currentTimeMillis();
     private long buildStart = -1;
     private long buildComplete = -1;
 

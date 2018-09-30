@@ -80,9 +80,13 @@ public class BuildResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Description("Gets all the builds that have been submitted")
     public String getAll(@Context UriInfo uriInfo) {
-        UriBuilder uriBuilder = uriInfo.getRequestUriBuilder();
         JSONObject result = new JSONObject()
-            .put("builds", new JSONArray(database.all().stream().map(br -> jsonForResult(uriBuilder.path(br.id), br)).collect(Collectors.toList())));
+            .put("builds", new JSONArray(
+                database.all().stream()
+                    .sorted((o1, o2) -> (int)(o1.queueStart - o2.queueStart))
+                    .map(br -> jsonForResult(uriInfo.getRequestUriBuilder().path(br.id), br))
+                    .collect(Collectors.toList()))
+            );
         return result.toString(4);
     }
 
