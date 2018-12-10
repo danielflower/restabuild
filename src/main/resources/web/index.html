@@ -15,8 +15,7 @@
             margin: 10px 0;
         }
 
-
-        #branchBox {
+        #branchBox, #buildFileBox {
             width: 30%;
         }
 
@@ -45,7 +44,11 @@
     </label>
     <label>
         Git Branch:
-        <input type="text" id="branchBox" name="branch"  placeholder="master">
+        <input type="text" id="branchBox" name="branch" placeholder="master">
+    </label>
+    <label>
+        Build File:
+        <input type="text" id="buildFileBox" name="buildFile" placeholder="{{buildfilename}}">
     </label>
     <input type="submit" value="Run build" id="submitButton">
 </form>
@@ -55,7 +58,8 @@
 
 <h2>View builds</h2>
 
-<p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a> or see <a href="api.html">API documentation</a>.</p>
+<p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a> or see <a href="api.html">API documentation</a>.
+</p>
 
 
 <footer>
@@ -68,6 +72,7 @@
         var form = document.getElementById('createForm');
         var urlBox = document.getElementById('gitUrlBox');
         var branchBox = document.getElementById('branchBox');
+        var buildFileBox = document.getElementById('buildFileBox');
         var path = location.pathname;
         var apiLink = document.getElementById('apiLink');
         apiLink.textContent = apiLink.href;
@@ -76,6 +81,7 @@
             var qs = new URLSearchParams(location.search);
             urlBox.value = qs.get('url');
             branchBox.value = qs.get('branch') || '';
+            buildFileBox.value = qs.get('buildFile') || '';
 
         }
 
@@ -83,11 +89,26 @@
         var update = function () {
             var value = urlBox.value;
             var branch = branchBox.value;
-            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + form.action;
-            history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
+            var buildFile = buildFileBox.value;
+            var curlParams = '-F \'gitUrl=' + (value || 'git-url') + '\' ';
+            var urlParams = '';
+            if (value) {
+                urlParams += (urlParams ? '&' : '') + 'url=' + encodeURIComponent(value);
+            }
+            if (branch) {
+                urlParams += (urlParams ? '&' : '') + 'branch=' + encodeURIComponent(branch);
+                curlParams += '-F \'branch=' + (branch || 'master') + '\' ';
+            }
+            if (buildFile) {
+                urlParams += (urlParams ? '&' : '') + 'buildFile=' + encodeURIComponent(buildFile);
+                curlParams += '-F \'buildFile=' + (branch || '{{buildfilename}}') + '\' ';
+            }
+            cc.textContent = 'curl -LNs ' + curlParams + form.action;
+            history.replaceState(null, null, urlParams ? encodeURI(path) + '?' + urlParams : encodeURI(path));
         };
         urlBox.addEventListener('input', update);
         branchBox.addEventListener('input', update);
+        buildFileBox.addEventListener('input', update);
         update();
         form.addEventListener('submit', function () {
             document.getElementById('submitButton').disabled = true;

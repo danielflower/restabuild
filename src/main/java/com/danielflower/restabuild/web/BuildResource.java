@@ -48,7 +48,7 @@ public class BuildResource {
     public Response create(@FormParam("gitUrl") @Description(value = "The URL of a git repo that includes a `build.sh` or `build.bat` file. " +
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
-                           @FormParam("buildFile") @Description(value = "The build script to be run. By default is `build.sh` or `build.bat` file") String buildFile,
+                           @FormParam("buildFile") @Description(value = "The build script to be run. This parameter is optional, by default is `build.sh` or `build.bat` file.") String buildFile,
                            @Context UriInfo uriInfo) {
         BuildResult result = createInternal(gitUrl, branch, buildFile);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
