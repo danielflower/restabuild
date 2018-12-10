@@ -5,6 +5,7 @@ import com.jcraft.jsch.JSch;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -26,11 +27,12 @@ public class ProjectManager {
     static {
         JSch.setConfig("StrictHostKeyChecking", "no");
     }
+
     private static final Logger log = LoggerFactory.getLogger(ProjectManager.class);
-    public static String buildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
+    public static String defaultBuildFile = SystemUtils.IS_OS_WINDOWS ? "build.bat" : "build.sh";
 
 
-    static synchronized ProjectManager create(String gitUrl, FileSandbox fileSandbox, Writer writer) {
+    static synchronized ProjectManager create(String gitUrl, FileSandbox fileSandbox, String buildFile, Writer writer) {
         String repoId = DigestUtils.sha1Hex(gitUrl);
         File gitDir = fileSandbox.repoDir(repoId);
         File instanceDir = fileSandbox.tempDir(repoId + File.separator + "instances");
@@ -54,7 +56,7 @@ public class ProjectManager {
         }
 
         setRemoteOriginUrl(git.getRepository(), gitUrl);
-        return new ProjectManager(git, instanceDir, gitUrl, gitDir);
+        return new ProjectManager(git, instanceDir, gitUrl, gitDir, buildFile);
     }
 
 
@@ -73,12 +75,14 @@ public class ProjectManager {
     private final File instanceDir;
     private final String gitUrl;
     private final File repoDir;
+    private final String buildFile;
 
-    private ProjectManager(Git git, File instanceDir, String gitUrl, File repoDir) {
+    private ProjectManager(Git git, File instanceDir, String gitUrl, File repoDir, String buildFile) {
         this.git = git;
         this.instanceDir = instanceDir;
         this.gitUrl = gitUrl;
         this.repoDir = repoDir;
+        this.buildFile = buildFile;
     }
 
 
@@ -87,6 +91,7 @@ public class ProjectManager {
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
+        String buildFile = StringUtils.isBlank(this.buildFile) ? defaultBuildFile : this.buildFile;
         File f = new File(workDir, buildFile);
         BuildState result;
         if (!f.isFile()) {
@@ -98,8 +103,8 @@ public class ProjectManager {
                 command = new CommandLine(f);
             } else {
                 command = new CommandLine("bash")
-                .addArgument("-x")
-                .addArgument(f.getName());
+                    .addArgument("-x")
+                    .addArgument(f.getName());
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
             result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
@@ -130,7 +135,7 @@ public class ProjectManager {
 
         String currentBranch = copy.getRepository().getBranch();
         log.info("currently branch {}", currentBranch);
-        if(!branch.equals(currentBranch)) {
+        if (!branch.equals(currentBranch)) {
             throw new RuntimeException("Failed to switch to branch " + branch + " the current branch is " + currentBranch);
         }
 

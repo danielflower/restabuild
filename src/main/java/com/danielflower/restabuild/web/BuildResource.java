@@ -48,8 +48,9 @@ public class BuildResource {
     public Response create(@FormParam("gitUrl") @Description(value = "The URL of a git repo that includes a `build.sh` or `build.bat` file. " +
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
+                           @FormParam("buildFile") @Description(value = "The build script to be run. By default is `build.sh` or `build.bat` file") String buildFile,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl, branch);
+        BuildResult result = createInternal(gitUrl, branch, buildFile);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -59,18 +60,18 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildFile) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
 
         String gitBranch = branch;
-        if(null == branch || branch.trim().isEmpty()) {
+        if (null == branch || branch.trim().isEmpty()) {
             gitBranch = "master";
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
-        BuildResult result = new BuildResult(fileSandbox, gitRepo);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildFile);
         database.save(result);
         buildQueue.enqueue(result);
         return result;
@@ -83,7 +84,7 @@ public class BuildResource {
         JSONObject result = new JSONObject()
             .put("builds", new JSONArray(
                 database.all().stream()
-                    .sorted((o1, o2) -> (int)(o1.queueStart - o2.queueStart))
+                    .sorted((o1, o2) -> (int) (o1.queueStart - o2.queueStart))
                     .map(br -> jsonForResult(uriInfo.getRequestUriBuilder().path(br.id), br))
                     .collect(Collectors.toList()))
             );
@@ -94,10 +95,10 @@ public class BuildResource {
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Description("Gets the build information for a specific build")
-    @ApiResponse(code="200", message="Success")
-    @ApiResponse(code="404", message="No build with that ID exists", contentType = "text/plain")
+    @ApiResponse(code = "200", message = "Success")
+    @ApiResponse(code = "404", message = "No build with that ID exists", contentType = "text/plain")
     public String get(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
-                              String id, @Context UriInfo uriInfo) {
+                          String id, @Context UriInfo uriInfo) {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             return jsonForResult(uriInfo.getRequestUriBuilder(), br.get()).toString(4);
@@ -116,10 +117,10 @@ public class BuildResource {
     @Path("{id}/log")
     @Produces(MediaType.TEXT_PLAIN)
     @Description(value = "Gets the build log as plain text", details = "If the build is in progress then it will stream the response until it is complete")
-    @ApiResponse(code="200", message="Success")
-    @ApiResponse(code="404", message="No build with that ID exists")
+    @ApiResponse(code = "200", message = "Success")
+    @ApiResponse(code = "404", message = "No build with that ID exists")
     public void getLog(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
-                               String id, @Context MuResponse resp, @Context UriInfo uriInfo) throws IOException {
+                           String id, @Context MuResponse resp, @Context UriInfo uriInfo) throws IOException {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             BuildResult result = br.get();

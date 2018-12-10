@@ -18,6 +18,7 @@ public class BuildResult {
     private final File buildDir;
     private volatile BuildState state = BuildState.QUEUED;
     private final GitRepo gitRepo;
+    private final String buildFile;
     private volatile StringBuffer buildLog = new StringBuffer();
     private File buildLogFile;
     private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
@@ -25,9 +26,10 @@ public class BuildResult {
     private long buildStart = -1;
     private long buildComplete = -1;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
+    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildFile) {
         this.sandbox = sandbox;
         this.gitRepo = gitRepo;
+        this.buildFile = buildFile;
         this.buildDir = sandbox.buildDir(id);
         buildLogFile = new File(buildDir, "build.log");
     }
@@ -71,7 +73,7 @@ public class BuildResult {
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
-                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
+                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, buildFile, writer);
                 newState = pm.build(writer, gitRepo.branch);
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());

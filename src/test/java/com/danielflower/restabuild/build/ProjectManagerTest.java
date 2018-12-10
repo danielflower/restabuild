@@ -23,7 +23,7 @@ public class ProjectManagerTest {
     @Test
     public void canBuildProjectsAndPickUpChangesFromMasterBranch() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), null, buildLog);
 
         BuildState result = runner.build(buildLog, "master");
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
@@ -42,7 +42,7 @@ public class ProjectManagerTest {
     @Test
     public void canBuildProjectsAndPickUpChangesFromAnyExisingBranch() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), null, buildLog);
 
         BuildState result = runner.build(buildLog, "branch-1");
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
@@ -61,7 +61,7 @@ public class ProjectManagerTest {
     @Test
     public void canBuildProjectsAndSwitchFromBranch() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), null, buildLog);
 
         BuildState result = runner.build(buildLog, "master");
         assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
@@ -78,19 +78,19 @@ public class ProjectManagerTest {
         StringBuilderWriter buildLogMasterAgain = new StringBuilderWriter();
         BuildState result2 = runner.build(buildLogMasterAgain, "master");
         assertThat(buildLogMasterAgain.toString(), result2, is(BuildState.SUCCESS));
-        assertThat(buildLogMasterAgain.toString(),  containsString("BUILD SUCCESS"));
+        assertThat(buildLogMasterAgain.toString(), containsString("BUILD SUCCESS"));
 
 
         StringBuilderWriter buildLogBranch1Again = new StringBuilderWriter();
         BuildState branch1AgainResult = runner.build(buildLogBranch1Again, "branch-1");
         assertThat(buildLogBranch1Again.toString(), branch1AgainResult, is(BuildState.FAILURE));
-        assertThat(buildLogBranch1Again.toString(),  containsString("The build could not read 1 project"));
+        assertThat(buildLogBranch1Again.toString(), containsString("The build could not read 1 project"));
     }
 
     @Test
     public void canFailBuildIfBranchDoesnotExist() throws Exception {
         StringBuilderWriter buildLog = new StringBuilderWriter();
-        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), buildLog);
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), null, buildLog);
 
         try {
             runner.build(buildLog, "a-non-exist-branch");
@@ -99,6 +99,25 @@ public class ProjectManagerTest {
             e.getMessage().contains("Failed to switch to branch a-non-exist-branch");
         }
 
+    }
+
+    @Test
+    public void canBuildProjectsWithGivenBuildFile() throws Exception {
+        StringBuilderWriter buildLog = new StringBuilderWriter();
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), "test.bat", buildLog);
+
+        BuildState result = runner.build(buildLog, "master");
+        assertThat(buildLog.toString(), result, is(BuildState.SUCCESS));
+        assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
+    }
+
+    @Test
+    public void canFailBuildIfBuildFileNotExist() throws Exception {
+        StringBuilderWriter buildLog = new StringBuilderWriter();
+        ProjectManager runner = ProjectManager.create(appRepo.gitUrl(), TestConfig.testSandbox(), "e2e.bat", buildLog);
+        BuildState result = runner.build(buildLog, "master");
+        assertThat(buildLog.toString(), result, is(BuildState.FAILURE));
+        assertThat(buildLog.toString(), containsString("Please place a file called e2e.bat in the root of your repo"));
     }
 
     private static void breakTheProject(AppRepo appRepo, String branch) throws IOException, GitAPIException {

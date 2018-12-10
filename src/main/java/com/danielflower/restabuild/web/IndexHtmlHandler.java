@@ -20,7 +20,7 @@ public class IndexHtmlHandler implements RouteHandler {
         String version = coalesce(getClass().getPackage().getImplementationVersion(), "dev");
 
         template = new String(Mutils.toByteArray(IndexHtmlHandler.class.getResourceAsStream("/web/index.html"), 8192), "UTF-8")
-            .replace("{{buildfilename}}", ProjectManager.buildFile)
+            .replace("{{buildfilename}}", ProjectManager.defaultBuildFile)
             .replace("{{restabuildversion}}", version);
     }
 
