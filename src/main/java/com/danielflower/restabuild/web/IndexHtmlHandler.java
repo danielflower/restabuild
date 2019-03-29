@@ -1,10 +1,7 @@
 package com.danielflower.restabuild.web;
 
 import com.danielflower.restabuild.build.ProjectManager;
-import io.muserver.MuRequest;
-import io.muserver.MuResponse;
-import io.muserver.Mutils;
-import io.muserver.RouteHandler;
+import io.muserver.*;
 
 import java.io.IOException;
 import java.util.Map;
@@ -26,7 +23,7 @@ public class IndexHtmlHandler implements RouteHandler {
 
     @Override
     public void handle(MuRequest request, MuResponse response, Map<String, String> pathParams) throws Exception {
-        response.contentType("text/html");
+        response.contentType(ContentTypes.TEXT_HTML_UTF8);
         response.write(template);
     }
 }

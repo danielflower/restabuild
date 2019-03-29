@@ -5,6 +5,7 @@ import com.danielflower.restabuild.build.BuildDatabase;
 import com.danielflower.restabuild.build.BuildQueue;
 import com.danielflower.restabuild.build.BuildResult;
 import com.danielflower.restabuild.build.GitRepo;
+import io.muserver.ContentTypes;
 import io.muserver.HeaderNames;
 import io.muserver.HeaderValues;
 import io.muserver.MuResponse;
@@ -114,7 +115,7 @@ public class BuildResource {
 
     @GET
     @Path("{id}/log")
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces("text/plain; charset=utf-8")
     @Description(value = "Gets the build log as plain text", details = "If the build is in progress then it will stream the response until it is complete")
     @ApiResponse(code="200", message="Success")
     @ApiResponse(code="404", message="No build with that ID exists")
@@ -123,7 +124,7 @@ public class BuildResource {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             BuildResult result = br.get();
-            resp.contentType(MediaType.TEXT_PLAIN);
+            resp.contentType(ContentTypes.TEXT_PLAIN_UTF8);
             UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/log", ""));
             JSONObject jsonObject = jsonForResult(buildPath, result);
             String header = jsonObject.toString(4) + "\n\n";
@@ -132,18 +133,6 @@ public class BuildResource {
             } else {
 
                 resp.sendChunk(header);
-
-                // HACK forces some buffer somewhere to trip and so the browser renders immediately
-                resp.sendChunk("*...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*" +
-                    "...................................................................................................*\n\n");
 
                 result.streamLog(new BuildResult.StringListener() {
                     public void onString(String value) {

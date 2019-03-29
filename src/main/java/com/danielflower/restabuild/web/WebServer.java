@@ -37,7 +37,7 @@ public class WebServer implements AutoCloseable {
             .addHandler(
                 context(context)
                     .addHandler(restHandler(buildResource)
-                        .withCORS(CORSConfigBuilder.corsConfig().withAllowedOriginRegex(Pattern.compile(".*")))
+                        .withCORS(CORSConfigBuilder.corsConfig().withAllOriginsAllowed())
                         .withOpenApiJsonUrl("/openapi.json")
                         .withOpenApiHtmlUrl("/api.html")
                         .withOpenApiDocument(
