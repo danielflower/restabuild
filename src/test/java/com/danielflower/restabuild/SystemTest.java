@@ -90,8 +90,8 @@ public class SystemTest {
     public void buildLogsAreAvailableInTheAPI() throws Exception {
         AppRepo appRepo = AppRepo.create("maven");
         JSONObject build1 = new JSONObject(createBuild(appRepo).getContentAsString());
-        JSONObject build2 = new JSONObject(createBuild(appRepo).getContentAsString());
         build1 = waitForBuildToFinish(build1);
+        JSONObject build2 = new JSONObject(createBuild(appRepo).getContentAsString());
         build2 = waitForBuildToFinish(build2);
 
         JSONObject api = new JSONObject(
@@ -100,8 +100,8 @@ public class SystemTest {
 
         JSONArray builds = api.getJSONArray("builds");
         assertThat(builds.length(), greaterThanOrEqualTo(2));
-        assertThat(build1.toString(4), is(((JSONObject) builds.get(builds.length() - 2)).toString(4)));
-        assertThat(build2.toString(4), is(((JSONObject) builds.get(builds.length() - 1)).toString(4)));
+        assertThat(build1.toString(4), is(((JSONObject) builds.get(1)).toString(4)));
+        assertThat(build2.toString(4), is(((JSONObject) builds.get(0)).toString(4)));
     }
 
 
