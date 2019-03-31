@@ -16,6 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <github.global.server>github</github.global.server>
         <jsch.agentproxy.version>0.0.9</jsch.agentproxy.version>
+        <jetty-client.version>9.4.15.v20190215</jetty-client.version>
     </properties>
 
     <ciManagement>
@@ -97,7 +98,7 @@
         <dependency>
             <groupId>io.muserver</groupId>
             <artifactId>mu-server</artifactId>
-            <version>0.26.0</version>
+            <version>0.26.2</version>
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
@@ -110,7 +111,7 @@
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
-            <version>0.1.51</version>
+            <version>0.1.54</version>
         </dependency>
         <dependency>
             <groupId>com.jcraft</groupId>
@@ -148,13 +149,13 @@
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-client</artifactId>
-            <version>9.4.8.v20171121</version>
+            <version>${jetty-client.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-util</artifactId>
-            <version>9.4.8.v20171121</version>
+            <version>${jetty-client.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
