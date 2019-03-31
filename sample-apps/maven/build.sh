@@ -3,4 +3,4 @@
 set -e
 
 mvn --version
-mvn releaser:next
+mvn releaser:release

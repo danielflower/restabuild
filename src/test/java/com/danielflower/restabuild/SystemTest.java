@@ -54,6 +54,12 @@ public class SystemTest {
         assertThat(build.getString("url"),
             equalTo("http://localhost:8080/restabuild/api/v1/builds/" + build.getString("id")));
         waitForBuildToFinish(build);
+
+        JSONObject afterBuild = new JSONObject(client.GET(build.getString("url")).getContentAsString());
+        assertThat(afterBuild.has("commitIDBeforeBuild"), is(true));
+        assertThat(afterBuild.getString("commitIDBeforeBuild"),
+            equalTo(afterBuild.getString("commitIDAfterBuild")));
+        assertThat(afterBuild.getJSONArray("tagsCreated").get(0), is("my-maven-app-1.0.0"));
     }
 
     private JSONObject waitForBuildToFinish(JSONObject build) throws InterruptedException, ExecutionException, TimeoutException {

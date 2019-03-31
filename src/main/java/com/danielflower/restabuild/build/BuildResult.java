@@ -1,12 +1,15 @@
 package com.danielflower.restabuild.build;
 
 import com.danielflower.restabuild.FileSandbox;
+import io.muserver.Mutils;
 import org.apache.commons.io.FileUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -24,6 +27,9 @@ public class BuildResult {
     public final long queueStart = System.currentTimeMillis();
     private long buildStart = -1;
     private long buildComplete = -1;
+    private String commitIDBeforeBuild;
+    private String commitIDAfterBuild;
+    private List<String> createdTags;
 
     public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
         this.sandbox = sandbox;
@@ -57,7 +63,10 @@ public class BuildResult {
             .put("gitBranch", gitRepo.branch)
             .put("status", state.name())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
-            .put("queueDurationMillis", queueDuration);
+            .put("queueDurationMillis", queueDuration)
+            .put("commitIDBeforeBuild", this.commitIDBeforeBuild)
+            .put("commitIDAfterBuild", this.commitIDAfterBuild)
+            .put("tagsCreated", new JSONArray(Mutils.coalesce(createdTags, Collections.<String>emptyList())));
         if (buildStart > 0) {
             long buildDuration = buildComplete < 0 ? (System.currentTimeMillis() - buildStart) : (buildComplete - buildStart);
             build.put("buildDurationMillis", buildDuration);
@@ -67,12 +76,14 @@ public class BuildResult {
 
     public void run() throws Exception {
         BuildState newState = state = BuildState.IN_PROGRESS;
+        ProjectManager.ExtendedBuildState extendedBuildState = null;
         buildStart = System.currentTimeMillis();
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                newState = pm.build(writer, gitRepo.branch);
+                extendedBuildState = pm.build(writer, gitRepo.branch);
+                newState = extendedBuildState.buildState;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());
                 ex.printStackTrace(new PrintWriter(writer));
@@ -84,6 +95,11 @@ public class BuildResult {
             synchronized (lock) {
                 state = newState;
                 buildLog = null;
+                if (extendedBuildState != null) {
+                    this.commitIDBeforeBuild = extendedBuildState.commitIDBeforeBuild;
+                    this.commitIDAfterBuild = extendedBuildState.commitIDAfterBuild;
+                    this.createdTags = extendedBuildState.tagsAdded;
+                }
             }
         }
     }

@@ -24,13 +24,16 @@ public class WebServer implements AutoCloseable {
     }
 
     public static WebServer start(int port, String context, BuildResource buildResource) throws IOException {
+        boolean hasContext = !Mutils.nullOrEmpty(context);
         MuServer server = muServer()
             .withHttpPort(port)
             .addHandler((request, response) -> {
                 log.info(request.toString());
-                if (request.uri().getPath().equals("/")) {
-                    response.redirect("/" + context + "/");
-                    return true;
+                if (hasContext) {
+                    if (request.uri().getPath().equals("/")) {
+                        response.redirect("/" + context + "/");
+                        return true;
+                    }
                 }
                 return false;
             })

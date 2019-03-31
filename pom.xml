@@ -6,7 +6,7 @@
 
     <groupId>com.danielflower.apprunner</groupId>
     <artifactId>restabuild</artifactId>
-    <version>0.4-SNAPSHOT</version>
+    <version>0.5-SNAPSHOT</version>
 
     <name>RestaBuild</name>
     <description>Builds Git-hosted projects via a REST API</description>
@@ -97,7 +97,7 @@
         <dependency>
             <groupId>io.muserver</groupId>
             <artifactId>mu-server</artifactId>
-            <version>0.25.8</version>
+            <version>0.26.0</version>
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
@@ -139,7 +139,7 @@
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
-            <version>4.10.0.201712302008-r</version>
+            <version>5.3.0.201903130848-r</version>
         </dependency>
         <!-- end git stuff -->
 
