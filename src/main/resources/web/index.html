@@ -15,7 +15,6 @@
             margin: 10px 0;
         }
 
-
         #branchBox {
             width: 30%;
         }
@@ -55,6 +54,8 @@
 
 <h2>View builds</h2>
 
+<ul id="recentBuilds"></ul>
+
 <p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a> or see <a href="api.html">API documentation</a>.</p>
 
 
@@ -62,37 +63,5 @@
     Restabuild version {{restabuildversion}}
 </footer>
 </body>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var cc = document.getElementById('curlCommand');
-        var form = document.getElementById('createForm');
-        var urlBox = document.getElementById('gitUrlBox');
-        var branchBox = document.getElementById('branchBox');
-        var path = location.pathname;
-        var apiLink = document.getElementById('apiLink');
-        apiLink.textContent = apiLink.href;
-
-        if ('URLSearchParams' in window) {
-            var qs = new URLSearchParams(location.search);
-            urlBox.value = qs.get('url');
-            branchBox.value = qs.get('branch') || '';
-
-        }
-
-
-        var update = function () {
-            var value = urlBox.value;
-            var branch = branchBox.value;
-            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + form.action;
-            history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
-        };
-        urlBox.addEventListener('input', update);
-        branchBox.addEventListener('input', update);
-        update();
-        form.addEventListener('submit', function () {
-            document.getElementById('submitButton').disabled = true;
-        });
-
-    });
-</script>
+<script src="restabuild.js"></script>
 </html>

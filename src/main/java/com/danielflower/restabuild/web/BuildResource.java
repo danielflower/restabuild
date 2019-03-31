@@ -79,12 +79,16 @@ public class BuildResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Description("Gets all the builds that have been submitted")
-    public String getAll(@Context UriInfo uriInfo) {
+    @Description("Gets all the builds that have been submitted ordered by newest to oldest")
+    public String getAll(@Context UriInfo uriInfo,
+                         @Description("The number to skip") @QueryParam("skip") @DefaultValue("0") long skip,
+                         @Description("The maximum number to return") @QueryParam("limit") @DefaultValue("100") long limit) {
         JSONObject result = new JSONObject()
             .put("builds", new JSONArray(
                 database.all().stream()
-                    .sorted((o1, o2) -> (int)(o1.queueStart - o2.queueStart))
+                    .sorted((o1, o2) -> (int)(o2.queueStart - o1.queueStart))
+                    .skip(skip)
+                    .limit(limit)
                     .map(br -> jsonForResult(uriInfo.getRequestUriBuilder().path(br.id), br))
                     .collect(Collectors.toList()))
             );
@@ -109,8 +113,8 @@ public class BuildResource {
 
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
         return result.toJson()
-            .put("url", resourcePath.build())
-            .put("logUrl", resourcePath.path("log").build().toString());
+            .put("url", resourcePath.replaceQuery(null).build())
+            .put("logUrl", resourcePath.path("log").replaceQuery(null).build().toString());
     }
 
     @GET
