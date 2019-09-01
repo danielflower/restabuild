@@ -30,10 +30,12 @@ public class BuildResult {
     private String commitIDBeforeBuild;
     private String commitIDAfterBuild;
     private List<String> createdTags;
+    private String buildParam;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo) {
+    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam) {
         this.sandbox = sandbox;
         this.gitRepo = gitRepo;
+        this.buildParam = buildParam;
         this.buildDir = sandbox.buildDir(id);
         buildLogFile = new File(buildDir, "build.log");
     }
@@ -61,6 +63,7 @@ public class BuildResult {
             .put("id", id)
             .put("gitUrl", gitRepo.url)
             .put("gitBranch", gitRepo.branch)
+            .put("buildParam", buildParam == null ? "" : buildParam)
             .put("status", state.name())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
             .put("queueDurationMillis", queueDuration)
@@ -82,7 +85,7 @@ public class BuildResult {
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                extendedBuildState = pm.build(writer, gitRepo.branch);
+                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam);
                 newState = extendedBuildState.buildState;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());

@@ -49,8 +49,9 @@ public class BuildResource {
     public Response create(@FormParam("gitUrl") @Description(value = "The URL of a git repo that includes a `build.sh` or `build.bat` file. " +
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
+                           @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl, branch);
+        BuildResult result = createInternal(gitUrl, branch, buildParam);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -60,7 +61,7 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
@@ -71,7 +72,7 @@ public class BuildResource {
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
-        BuildResult result = new BuildResult(fileSandbox, gitRepo);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam);
         database.save(result);
         buildQueue.enqueue(result);
         return result;

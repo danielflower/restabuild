@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var form = $('#createForm');
     var urlBox = $('#gitUrlBox');
     var branchBox = $('#branchBox');
+    var buildParamBox = $('#buildParamBox');
     var path = location.pathname;
     var apiLink = $('#apiLink');
     apiLink.textContent = apiLink.href;
@@ -12,17 +13,20 @@ document.addEventListener('DOMContentLoaded', function () {
         var qs = new URLSearchParams(location.search);
         urlBox.value = qs.get('url');
         branchBox.value = qs.get('branch') || '';
+        buildParamBox.value = qs.get('param') || '';
 
     }
 
     var update = function () {
         var value = urlBox.value;
         var branch = branchBox.value;
-        cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + form.action;
+        var buildParam = buildParamBox.value;
+        cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + '-F \'param=' + (buildParam || '') + '\' ' + form.action;
         history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
     };
     urlBox.addEventListener('input', update);
     branchBox.addEventListener('input', update);
+    buildParamBox.addEventListener('input', update);
     update();
     form.addEventListener('submit', function () {
         $('#submitButton').disabled = true;
