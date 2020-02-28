@@ -12,10 +12,12 @@ public class BuildQueue {
 
     private final BlockingQueue<BuildResult> queue = new LinkedBlockingQueue<>();
     private final int numberOfConcurrentBuilds;
+    private final int buildTimeout;
     private volatile boolean isRunning = false;
 
-    public BuildQueue(int numberOfConcurrentBuilds) {
+    public BuildQueue(int numberOfConcurrentBuilds, int buildTimeout) {
         this.numberOfConcurrentBuilds = numberOfConcurrentBuilds;
+        this.buildTimeout = buildTimeout;
         this.executorService = Executors.newFixedThreadPool(numberOfConcurrentBuilds);
     }
 
@@ -34,7 +36,7 @@ public class BuildQueue {
         while (isRunning) {
             try {
                 BuildResult build = queue.take();
-                build.run();
+                build.run(buildTimeout);
             } catch (Throwable t) {
                 if (isRunning) {
                     log.error("Error in the build loop", t);

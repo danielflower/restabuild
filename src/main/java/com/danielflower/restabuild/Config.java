@@ -18,6 +18,7 @@ public class Config {
     public static final String DATA_DIR = "restabuild.data";
     public static final String CONTEXT = "restabuild.context";
     public static final String CONCURRENT_BUILDS = "restabuild.concurrent.builds";
+    public static final String TIMEOUT = "restabuild.timeout";
 
     public static Config load(String[] commandLineArgs) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());

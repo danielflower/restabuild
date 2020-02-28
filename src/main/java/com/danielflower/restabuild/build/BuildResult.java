@@ -77,7 +77,7 @@ public class BuildResult {
         return build;
     }
 
-    public void run() throws Exception {
+    public void run(int buildTimeout) throws Exception {
         BuildState newState = state = BuildState.IN_PROGRESS;
         ProjectManager.ExtendedBuildState extendedBuildState = null;
         buildStart = System.currentTimeMillis();
@@ -85,7 +85,7 @@ public class BuildResult {
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam);
+                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout);
                 newState = extendedBuildState.buildState;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());

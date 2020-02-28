@@ -1,5 +1,6 @@
 package com.danielflower.restabuild.build;
 
+import com.danielflower.restabuild.Config;
 import com.danielflower.restabuild.FileSandbox;
 import com.jcraft.jsch.JSch;
 import io.muserver.Mutils;
@@ -100,7 +101,7 @@ public class ProjectManager {
         }
     }
 
-    public ExtendedBuildState build(Writer outputHandler, String branch, String buildParam) throws Exception {
+    public ExtendedBuildState build(Writer outputHandler, String branch, String buildParam, int buildTimeout) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
@@ -133,7 +134,7 @@ public class ProjectManager {
                 command.addArguments(buildParam);
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
-            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(30));
+            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout));
 
             headAfter = git.getRepository().exactRef("HEAD");
 
