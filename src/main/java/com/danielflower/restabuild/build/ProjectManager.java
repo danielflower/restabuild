@@ -1,5 +1,6 @@
 package com.danielflower.restabuild.build;
 
+import com.danielflower.restabuild.Config;
 import com.danielflower.restabuild.FileSandbox;
 import com.jcraft.jsch.JSch;
 import io.muserver.Mutils;
@@ -133,7 +134,7 @@ public class ProjectManager {
                 command.addArguments(buildParam);
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
-            long buildTimeout = Long.parseLong(System.getProperty("BUILD_TIMEOUT", "30"));
+            int buildTimeout = Config.getConfig().getInt(Config.TIMEOUT, 30);
             result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout));
 
             headAfter = git.getRepository().exactRef("HEAD");
