@@ -20,8 +20,6 @@ public class Config {
     public static final String CONCURRENT_BUILDS = "restabuild.concurrent.builds";
     public static final String TIMEOUT = "restabuild.timeout";
 
-    private static Config config;
-
     public static Config load(String[] commandLineArgs) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());
         for (String key : System.getProperties().stringPropertyNames()) {
@@ -40,12 +38,7 @@ public class Config {
                 }
             }
         }
-        config = new Config(env);
-        return config;
-    }
-
-    public static Config getConfig() {
-        return config;
+        return new Config(env);
     }
 
     private final Map<String, String> raw;

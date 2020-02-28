@@ -40,7 +40,7 @@ public class App {
         int appRunnerPort = config.getInt(SERVER_PORT);
 
         database = new BuildDatabase();
-        buildQueue = new BuildQueue(config.getInt(Config.CONCURRENT_BUILDS));
+        buildQueue = new BuildQueue(config.getInt(Config.CONCURRENT_BUILDS), config.getInt(Config.TIMEOUT, 30));
         buildQueue.start();
 
         BuildResource buildResource = new BuildResource(fileSandbox, buildQueue, database);
