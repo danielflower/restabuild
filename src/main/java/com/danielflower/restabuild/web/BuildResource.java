@@ -115,7 +115,13 @@ public class BuildResource {
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
         return result.toJson()
             .put("url", resourcePath.replaceQuery(null).build())
-            .put("logUrl", resourcePath.path("log").replaceQuery(null).build().toString());
+            .put("logUrl", getLogUrl(resourcePath));
+    }
+
+    private static String getLogUrl(UriBuilder resourcePath) {
+        String logUrl = resourcePath.path("log").replaceQuery(null).build().toString();
+        System.setProperty("LOG_URL", logUrl);
+        return logUrl;
     }
 
     @GET
