@@ -12,6 +12,7 @@ import io.muserver.MuResponse;
 import io.muserver.rest.ApiResponse;
 import io.muserver.rest.Description;
 import io.muserver.rest.ResponseHeader;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -51,9 +52,9 @@ public class BuildResource {
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl, branch, buildParam);
+        BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
-        return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
+        return Response.seeOther(buildPath.path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
             .header("Build-URL", buildPath.build())
             .entity(jsonForResult(buildPath, result).toString(4))
@@ -61,7 +62,7 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch, String buildParam) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
@@ -72,6 +73,8 @@ public class BuildResource {
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
+        String logUrl = uriInfo.getRequestUriBuilder().path("log").replaceQuery(null).build().toString();
+        buildParam = StringUtils.isNoneBlank(buildParam) ? buildParam + " " + logUrl : logUrl;
         BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam);
         database.save(result);
         buildQueue.enqueue(result);
@@ -115,13 +118,7 @@ public class BuildResource {
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
         return result.toJson()
             .put("url", resourcePath.replaceQuery(null).build())
-            .put("logUrl", getLogUrl(resourcePath));
-    }
-
-    private static String getLogUrl(UriBuilder resourcePath) {
-        String logUrl = resourcePath.path("log").replaceQuery(null).build().toString();
-        System.setProperty("LOG_URL", logUrl);
-        return logUrl;
+            .put("logUrl", resourcePath.path("log").replaceQuery(null).build().toString());
     }
 
     @GET
