@@ -12,7 +12,6 @@ import io.muserver.MuResponse;
 import io.muserver.rest.ApiResponse;
 import io.muserver.rest.Description;
 import io.muserver.rest.ResponseHeader;
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -54,7 +53,7 @@ public class BuildResource {
                            @Context UriInfo uriInfo) {
         BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
-        return Response.seeOther(buildPath.path("log").build())
+        return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
             .header("Build-URL", buildPath.build())
             .entity(jsonForResult(buildPath, result).toString(4))
@@ -73,9 +72,7 @@ public class BuildResource {
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
-        String logUrl = uriInfo.getRequestUriBuilder().path("log").replaceQuery(null).build().toString();
-        buildParam = StringUtils.isNoneBlank(buildParam) ? buildParam + " " + logUrl : logUrl;
-        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, uriInfo);
         database.save(result);
         buildQueue.enqueue(result);
         return result;
@@ -118,7 +115,7 @@ public class BuildResource {
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
         return result.toJson()
             .put("url", resourcePath.replaceQuery(null).build())
-            .put("logUrl", resourcePath.path("log").replaceQuery(null).build().toString());
+            .put("logUrl", resourcePath.path("log").replaceQuery(null).build());
     }
 
     @GET
