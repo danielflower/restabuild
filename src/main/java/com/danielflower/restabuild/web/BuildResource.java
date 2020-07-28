@@ -19,6 +19,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Path("api/v1/builds")
@@ -72,7 +73,8 @@ public class BuildResource {
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
-        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, uriInfo);
+        String id = UUID.randomUUID().toString().replace("-", "");
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, id);
         database.save(result);
         buildQueue.enqueue(result);
         return result;

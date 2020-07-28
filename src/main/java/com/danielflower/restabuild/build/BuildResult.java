@@ -6,20 +6,16 @@ import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import javax.ws.rs.core.UriInfo;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 public class BuildResult {
     private final Object lock = new Object();
-    public final String id = UUID.randomUUID().toString().replace("-", "");
+    public final String id;
     private final FileSandbox sandbox;
     private final File buildDir;
     private volatile BuildState state = BuildState.QUEUED;
@@ -34,19 +30,14 @@ public class BuildResult {
     private String commitIDAfterBuild;
     private List<String> createdTags;
     private String buildParam;
-    private Map<String, String> environment;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, UriInfo uriInfo) {
+    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, String id) {
         this.sandbox = sandbox;
         this.gitRepo = gitRepo;
         this.buildParam = buildParam;
         this.buildDir = sandbox.buildDir(id);
         this.buildLogFile = new File(buildDir, "build.log");
-        this.environment = getEnrichedEnvironment(uriInfo, id);
-    }
-
-    public Map<String, String> getEnvironment() {
-        return environment;
+        this.id = id;
     }
 
     public boolean hasFinished() {
@@ -94,7 +85,7 @@ public class BuildResult {
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, environment);
+                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, id);
                 newState = extendedBuildState.buildState;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());
@@ -156,14 +147,6 @@ public class BuildResult {
 
     public interface StringListener {
         void onString(String value);
-    }
-
-    private Map<String, String> getEnrichedEnvironment(UriInfo uriInfo, String buildId) {
-        String logUrl = uriInfo.getRequestUriBuilder().path(buildId).path("log").build().toString();
-        Map<String, String> envMap = System.getenv().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        envMap.put("RESTABUILD_ID", buildId);
-        envMap.put("RESTABUILD_LOG_URL", logUrl);
-        return envMap;
     }
 
 }

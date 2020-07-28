@@ -23,7 +23,6 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -101,7 +100,7 @@ public class ProjectManager {
         }
     }
 
-    public ExtendedBuildState build(Writer outputHandler, String branch, String buildParam, int buildTimeout, Map<String, String> environment) throws Exception {
+    public ExtendedBuildState build(Writer outputHandler, String branch, String buildParam, int buildTimeout, String buildId) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
         File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
         doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
@@ -134,7 +133,7 @@ public class ProjectManager {
                 command.addArguments(buildParam);
             }
             ProcessStarter processStarter = new ProcessStarter(outputHandler);
-            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout), environment);
+            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout), buildId);
 
             headAfter = git.getRepository().exactRef("HEAD");
 
