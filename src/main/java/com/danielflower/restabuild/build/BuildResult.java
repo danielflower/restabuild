@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BuildResult {
@@ -30,14 +31,16 @@ public class BuildResult {
     private String commitIDAfterBuild;
     private List<String> createdTags;
     private String buildParam;
+    private final Map<String, String> environment;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, String id) {
+    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, String id, Map<String, String> environment) {
         this.sandbox = sandbox;
         this.gitRepo = gitRepo;
         this.buildParam = buildParam;
         this.buildDir = sandbox.buildDir(id);
         this.buildLogFile = new File(buildDir, "build.log");
         this.id = id;
+        this.environment = environment;
     }
 
     public boolean hasFinished() {
@@ -85,7 +88,7 @@ public class BuildResult {
              Writer writer = new MultiWriter(logFileWriter)) {
             try {
                 ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
-                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, id);
+                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, environment);
                 newState = extendedBuildState.buildState;
             } catch (Exception ex) {
                 writer.write("\n\nERROR: " + ex.getMessage());

@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
@@ -23,12 +22,11 @@ public class ProcessStarter {
         this.outputHandler = outputHandler;
     }
 
-    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout, String buildId) throws RestaBuildException, IOException {
+    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout, Map<String, String> environment) throws RestaBuildException, IOException {
         long startTime = logStartInfo(command);
         ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
         Executor executor = createExecutor(this.outputHandler, command, projectRoot, watchDog);
         try {
-            Map<String, String> environment = getEnrichedEnvironment(buildId);
             int exitValue = executor.execute(command, environment);
             if (executor.isFailure(exitValue)) {
                 String message = watchDog.killedProcess()
@@ -80,15 +78,6 @@ public class ProcessStarter {
         executor.setStreamHandler(new PumpStreamHandler(new WriterOutputStream(consoleLogHandler, StandardCharsets.UTF_8, 1024, true)));
         writeLine(consoleLogHandler, dirPath(executor.getWorkingDirectory()) + "> " + String.join(" ", command.toStrings()) + "\n");
         return executor;
-    }
-
-    private Map<String, String> getEnrichedEnvironment(String buildId) {
-        String requestUri = System.getProperty("RESTABUILD_REQUEST_URI");
-        String logUrl = requestUri + "/" + buildId + "/log";
-        Map<String, String> envMap = new HashMap<>(System.getenv());
-        envMap.put("RESTABUILD_ID", buildId);
-        envMap.put("RESTABUILD_LOG_URL", logUrl);
-        return envMap;
     }
 
 }

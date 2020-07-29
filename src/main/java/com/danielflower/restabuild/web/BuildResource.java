@@ -18,6 +18,8 @@ import org.json.JSONObject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -53,7 +55,7 @@ public class BuildResource {
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
         cacheRequestUri(uriInfo);
-        BuildResult result = createInternal(gitUrl, branch, buildParam);
+        BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -70,7 +72,7 @@ public class BuildResource {
         }
     }
 
-    private BuildResult createInternal(String gitUrl, String branch, String buildParam) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
@@ -82,10 +84,19 @@ public class BuildResource {
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
         String id = UUID.randomUUID().toString().replace("-", "");
-        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, id);
+        Map<String, String> environment = getEnrichedEnvironment(id, uriInfo);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, id, environment);
         database.save(result);
         buildQueue.enqueue(result);
         return result;
+    }
+
+    private Map<String, String> getEnrichedEnvironment(String buildId, UriInfo uriInfo) {
+        String logUrl = uriInfo.getRequestUriBuilder().path(buildId).path("log").build().toString();
+        Map<String, String> envMap = new HashMap<>(System.getenv());
+        envMap.put("RESTABUILD_ID", buildId);
+        envMap.put("RESTABUILD_LOG_URL", logUrl);
+        return envMap;
     }
 
     @GET
