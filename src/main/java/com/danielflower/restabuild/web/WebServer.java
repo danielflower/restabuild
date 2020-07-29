@@ -56,9 +56,7 @@ public class WebServer implements AutoCloseable {
                     .addHandler(fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 
-        String serverUri = server.uri().resolve(hasContext ? "/" + context + "/" : "/").toString();
-        System.setProperty("RESTABUILD_URI", serverUri);
-        log.info("Started web server at {}", serverUri);
+        log.info("Started web server at {}", server.uri().resolve(hasContext ? "/" + context + "/" : "/").toString());
         return new WebServer(server);
     }
 

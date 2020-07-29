@@ -52,7 +52,8 @@ public class BuildResource {
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
+        cacheRequestUri(uriInfo);
+        BuildResult result = createInternal(gitUrl, branch, buildParam);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -62,7 +63,14 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
+    private void cacheRequestUri(UriInfo uriInfo) {
+        if (System.getProperty("RESTABUILD_REQUEST_URI") == null) {
+            String requestUri = uriInfo.getRequestUriBuilder().build().toString();
+            System.setProperty("RESTABUILD_REQUEST_URI", requestUri);
+        }
+    }
+
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }

@@ -18,7 +18,6 @@ import static com.danielflower.restabuild.FileSandbox.dirPath;
 public class ProcessStarter {
     private static final Logger log = LoggerFactory.getLogger(ProcessStarter.class);
     private final Writer outputHandler;
-    private static final String logUrlPattern = "%sapi/v1/builds/%s/log";
 
     ProcessStarter(Writer outputHandler) {
         this.outputHandler = outputHandler;
@@ -84,7 +83,8 @@ public class ProcessStarter {
     }
 
     private Map<String, String> getEnrichedEnvironment(String buildId) {
-        String logUrl = String.format(logUrlPattern, System.getProperty("RESTABUILD_URI"), buildId);
+        String requestUri = System.getProperty("RESTABUILD_REQUEST_URI");
+        String logUrl = requestUri + "/" + buildId + "/log";
         Map<String, String> envMap = new HashMap<>(System.getenv());
         envMap.put("RESTABUILD_ID", buildId);
         envMap.put("RESTABUILD_LOG_URL", logUrl);
