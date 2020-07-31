@@ -151,4 +151,18 @@ public class SystemTest {
 
     }
 
+    @Test
+    public void buildIdAndLogUrlAreAvailableInEnvVars() throws Exception {
+        AppRepo appRepo = AppRepo.create("env-vars");
+        JSONObject build = new JSONObject(createBuild(appRepo).getContentAsString());
+        String id = build.getString("id");
+        String logUrl = build.getString("logUrl");
+        String log = client.GET(logUrl).getContentAsString();
+
+        assertThat(log, Matchers.allOf(
+            containsString("Build ID: " + id),
+            containsString(String.format("Build Log URL: http://localhost:8080/restabuild/api/v1/builds/%s/log", id))
+        ));
+    }
+
 }
