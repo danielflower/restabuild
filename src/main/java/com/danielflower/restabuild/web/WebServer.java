@@ -1,12 +1,13 @@
 package com.danielflower.restabuild.web;
 
-import io.muserver.*;
+import io.muserver.Method;
+import io.muserver.MuServer;
+import io.muserver.Mutils;
 import io.muserver.rest.CORSConfigBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
@@ -55,7 +56,7 @@ public class WebServer implements AutoCloseable {
                     .addHandler(fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 
-        log.info("Started web server at " + server.uri().resolve(hasContext ? "/" + context + "/" : "/"));
+        log.info("Started web server at {}", server.uri().resolve(hasContext ? "/" + context + "/" : "/").toString());
         return new WebServer(server);
     }
 

@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
@@ -21,12 +22,12 @@ public class ProcessStarter {
         this.outputHandler = outputHandler;
     }
 
-    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout) throws RestaBuildException, IOException {
+    public BuildState run(Writer outputHandler, CommandLine command, File projectRoot, long timeout, Map<String, String> environment) throws RestaBuildException, IOException {
         long startTime = logStartInfo(command);
         ExecuteWatchdog watchDog = new ExecuteWatchdog(timeout);
         Executor executor = createExecutor(this.outputHandler, command, projectRoot, watchDog);
         try {
-            int exitValue = executor.execute(command, System.getenv());
+            int exitValue = executor.execute(command, environment);
             if (executor.isFailure(exitValue)) {
                 String message = watchDog.killedProcess()
                     ? "Timed out waiting for " + command

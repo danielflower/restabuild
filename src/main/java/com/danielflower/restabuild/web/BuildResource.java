@@ -18,7 +18,10 @@ import org.json.JSONObject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Path("api/v1/builds")
@@ -51,7 +54,7 @@ public class BuildResource {
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
-        BuildResult result = createInternal(gitUrl, branch, buildParam);
+        BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
             .header("Content-Type", MediaType.APPLICATION_JSON)
@@ -61,7 +64,7 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch, String buildParam) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
         if (gitUrl == null || gitUrl.isEmpty()) {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
@@ -72,10 +75,20 @@ public class BuildResource {
         }
 
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
-        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam);
+        String id = UUID.randomUUID().toString().replace("-", "");
+        Map<String, String> environment = getEnrichedEnvironment(id, uriInfo);
+        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, id, environment);
         database.save(result);
         buildQueue.enqueue(result);
         return result;
+    }
+
+    private Map<String, String> getEnrichedEnvironment(String buildId, UriInfo uriInfo) {
+        String logUrl = uriInfo.getRequestUriBuilder().path(buildId).path("log").build().toString();
+        Map<String, String> envMap = new HashMap<>(System.getenv());
+        envMap.put("RESTABUILD_ID", buildId);
+        envMap.put("RESTABUILD_LOG_URL", logUrl);
+        return envMap;
     }
 
     @GET
@@ -115,7 +128,7 @@ public class BuildResource {
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
         return result.toJson()
             .put("url", resourcePath.replaceQuery(null).build())
-            .put("logUrl", resourcePath.path("log").replaceQuery(null).build().toString());
+            .put("logUrl", resourcePath.path("log").replaceQuery(null).build());
     }
 
     @GET
