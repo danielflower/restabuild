@@ -1,7 +1,7 @@
 Restabuild
 ----------
 
-Your self-hosted build server that let's you quickly build projects from a RESTful interface only.
+Your self-hosted build server that lets you quickly build projects from a RESTful interface only.
 Simply place `build.sh` (or `build.bat` if the build server is Windows) into the root of your project
 and then `POST` to `/restabuild/api/v1/builds` with `gitUrl` as a form parameter. The web UI gives
 more detail on the API along with sample curl commands.
@@ -16,7 +16,7 @@ Configuration
 -------------
 
 See `sample-config.properties` for configuration information. Each setting can be specified
-as an environment variable, a java system property, or in a properties file who's path is
+as an environment variable, a java system property, or in a properties file whose path is
 specified as a command line argument.
 
 Running

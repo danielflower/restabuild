@@ -30,6 +30,7 @@ public class ProjectManagerTest {
         assertThat(buildLog.toString(), extendedBuildState.buildState, is(BuildState.SUCCESS));
         assertThat(buildLog.toString(), containsString("BUILD SUCCESS"));
         assertThat(extendedBuildState.tagsAdded, contains("my-maven-app-1.0.0"));
+        assertThat("workDir does not still exist", extendedBuildState.workDir.exists(), is(false));
 
         breakTheProject(appRepo, "master");
 
@@ -37,6 +38,7 @@ public class ProjectManagerTest {
         BuildState result2 = runner.build(badBuildLog, "master", null, defaultTimeout, System.getenv()).buildState;
         assertThat(buildLog.toString(), result2, is(BuildState.FAILURE));
         assertThat(badBuildLog.toString(), containsString("The build could not read 1 project"));
+        assertThat("workDir does not still exist", extendedBuildState.workDir.exists(), is(false));
 
     }
 

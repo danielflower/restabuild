@@ -5,7 +5,9 @@ import com.jcraft.jsch.JSch;
 import io.muserver.Mutils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.file.DeleteOption;
+import org.apache.commons.io.file.PathUtils;
+import org.apache.commons.io.file.StandardDeleteOption;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
@@ -29,7 +31,7 @@ import java.util.stream.Collectors;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
-public class ProjectManager {
+public class ProjectManager implements AutoCloseable {
     static {
         JSch.setConfig("StrictHostKeyChecking", "no");
     }
@@ -93,77 +95,85 @@ public class ProjectManager {
         public final String commitIDBeforeBuild;
         public final String commitIDAfterBuild;
         public final List<String> tagsAdded;
-        ExtendedBuildState(BuildState buildState, String commitIDBeforeBuild, String commitIDAfterBuild, List<String> tagsAdded) {
+        public final File workDir;
+        ExtendedBuildState(BuildState buildState, String commitIDBeforeBuild, String commitIDAfterBuild, List<String> tagsAdded, File workDir) {
             this.buildState = buildState;
             this.commitIDBeforeBuild = commitIDBeforeBuild;
             this.commitIDAfterBuild = commitIDAfterBuild;
             this.tagsAdded = tagsAdded;
+            this.workDir = workDir;
         }
     }
 
     public ExtendedBuildState build(Writer outputHandler, String branch, String buildParam, int buildTimeout, Map<String, String> environment) throws Exception {
         doubleLog(outputHandler, "Fetching latest changes from git...");
-        File workDir = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch);
-        doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
+        final File workDir;
+        final ExtendedBuildState extendedBuildState;
+        try (Git git = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch)) {
+            workDir = git.getRepository().getWorkTree();
+            doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
-        Git git = Git.open(workDir);
+            Ref headBefore = git.getRepository().exactRef("HEAD");
+            Ref headAfter = headBefore;
+            ObjectId beforeCommitID = headBefore.getObjectId();
+            List<String> newTags = new ArrayList<>();
+            List<String> tagsBefore = getTagsAt(git, beforeCommitID);
 
-
-        Ref headBefore = git.getRepository().exactRef("HEAD");
-        Ref headAfter = headBefore;
-        ObjectId beforeCommitID = headBefore.getObjectId();
-        List<String> newTags = new ArrayList<>();
-        List<String> tagsBefore = getTagsAt(git, beforeCommitID);
-
-        File f = new File(workDir, buildFile);
-        BuildState result;
-        if (!f.isFile()) {
-            outputHandler.write("Please place a file called " + buildFile + " in the root of your repo");
-            result = BuildState.FAILURE;
-        } else {
-
-            CommandLine command;
-            if (SystemUtils.IS_OS_WINDOWS) {
-                command = new CommandLine(f);
+            File f = new File(workDir, buildFile);
+            BuildState result;
+            if (!f.isFile()) {
+                outputHandler.write("Please place a file called " + buildFile + " in the root of your repo");
+                result = BuildState.FAILURE;
             } else {
-                command = new CommandLine("bash")
-                .addArgument("-x")
-                .addArgument(f.getName());
-            }
-            if (StringUtils.isNoneBlank(buildParam)) {
-                command.addArguments(buildParam);
-            }
-            ProcessStarter processStarter = new ProcessStarter(outputHandler);
-            result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout), environment);
 
-            headAfter = git.getRepository().exactRef("HEAD");
-
-            try (RevWalk walk = new RevWalk(git.getRepository())) {
-                walk.markStart(walk.parseCommit(headAfter.getObjectId()));
-                walk.markUninteresting(walk.parseCommit(headBefore.getObjectId()));
-                for (RevCommit commit : walk) {
-                    getTagsAt(git, commit.getId()).forEach(s -> newTags.add(0, s));
+                CommandLine command;
+                if (SystemUtils.IS_OS_WINDOWS) {
+                    command = new CommandLine(f);
+                } else {
+                    command = new CommandLine("bash")
+                        .addArgument("-x")
+                        .addArgument(f.getName());
                 }
+                if (StringUtils.isNoneBlank(buildParam)) {
+                    command.addArguments(buildParam);
+                }
+                ProcessStarter processStarter = new ProcessStarter(outputHandler);
+                result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout), environment);
+
+                headAfter = git.getRepository().exactRef("HEAD");
+
+                try (RevWalk walk = new RevWalk(git.getRepository())) {
+                    walk.markStart(walk.parseCommit(headAfter.getObjectId()));
+                    walk.markUninteresting(walk.parseCommit(headBefore.getObjectId()));
+                    for (RevCommit commit : walk) {
+                        getTagsAt(git, commit.getId()).forEach(s -> newTags.add(0, s));
+                    }
+                }
+                getTagsAt(git, beforeCommitID).forEach(s -> newTags.add(0, s));
             }
-            getTagsAt(git, beforeCommitID).forEach(s -> newTags.add(0, s));
+
+            newTags.removeAll(tagsBefore);
+
+            extendedBuildState = new ExtendedBuildState(result, beforeCommitID.name(), headAfter.getObjectId().name(), Collections.unmodifiableList(newTags), workDir);
         }
 
-        FileUtils.deleteQuietly(workDir);
+        deleteDirectoryQuietly(workDir, StandardDeleteOption.OVERRIDE_READ_ONLY);
 
-        for (String existingTag : tagsBefore) {
-            newTags.remove(existingTag);
-        }
-
-        return new ExtendedBuildState(result, beforeCommitID.name(), headAfter.getObjectId().name(), Collections.unmodifiableList(newTags));
+        return extendedBuildState;
     }
 
+    public void close() {
+        if (git != null) {
+            git.close();
+        }
+    }
 
-    private File pullFromGitAndCopyWorkingCopyToNewDir(Writer writer, String branch) throws GitAPIException, IOException {
+    private Git pullFromGitAndCopyWorkingCopyToNewDir(Writer writer, String branch) throws GitAPIException, IOException {
         git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
         return copyToNewInstanceDirAndSwitchBranch(branch);
     }
 
-    private File copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {
+    private Git copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {
         File dest = new File(instanceDir, String.valueOf(System.currentTimeMillis()));
         if (!dest.mkdir()) {
             throw new RuntimeException("Could not create " + dirPath(dest));
@@ -182,7 +192,7 @@ public class ProjectManager {
         }
 
         setRemoteOriginUrl(copy.getRepository(), gitUrl);
-        return dest;
+        return copy;
     }
 
     private static List<String> getTagsAt(Git git, ObjectId commitID) throws GitAPIException {
@@ -211,5 +221,13 @@ public class ProjectManager {
     private static void doubleLog(Writer writer, String message) {
         log.info(message);
         ProcessStarter.writeLine(writer, message);
+    }
+
+    private static void deleteDirectoryQuietly(File workDir, DeleteOption... options) {
+        try {
+            PathUtils.deleteDirectory(workDir.toPath(), options);
+        } catch (IOException e) {
+            log.debug("Failed to delete {}", workDir, e);
+        }
     }
 }

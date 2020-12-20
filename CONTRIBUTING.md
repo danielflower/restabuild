@@ -11,7 +11,7 @@ Deploying to Nexus
 
 **This section applies only to project owners**
 
-The JARs must be signed and you must have access to upload to Sonatype, so you need a GPG key and a Sonatype login.
+The JARs must be signed, and you must have access to upload to Sonatype, so you need a GPG key and a Sonatype login.
 The passwords for this should be in your Maven `settings.xml` with the following config:
 
 	<settings>

@@ -22,7 +22,7 @@ public class BuildResult {
     private volatile BuildState state = BuildState.QUEUED;
     private final GitRepo gitRepo;
     private volatile StringBuffer buildLog = new StringBuffer();
-    private File buildLogFile;
+    private final File buildLogFile;
     private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
     public final long queueStart = System.currentTimeMillis();
     private long buildStart = -1;
@@ -30,7 +30,7 @@ public class BuildResult {
     private String commitIDBeforeBuild;
     private String commitIDAfterBuild;
     private List<String> createdTags;
-    private String buildParam;
+    private final String buildParam;
     private final Map<String, String> environment;
 
     public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, String id, Map<String, String> environment) {
@@ -86,8 +86,7 @@ public class BuildResult {
         buildStart = System.currentTimeMillis();
         try (FileWriter logFileWriter = new FileWriter(buildLogFile);
              Writer writer = new MultiWriter(logFileWriter)) {
-            try {
-                ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer);
+            try (ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer)) {
                 extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, environment);
                 newState = extendedBuildState.buildState;
             } catch (Exception ex) {
