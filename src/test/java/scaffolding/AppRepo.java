@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
 
 import java.io.File;
+import java.nio.file.Files;
 
 import static scaffolding.Photocopier.copySampleAppToTempDir;
 
@@ -16,6 +17,7 @@ public class AppRepo {
             InitCommand initCommand = Git.init();
             initCommand.setDirectory(originDir);
             Git origin = initCommand.call();
+            String defaultBranch = origin.getRepository().getBranch();
 
             origin.add().addFilepattern(".").call();
             origin.commit().setMessage("Initial commit").call();
@@ -25,6 +27,13 @@ public class AppRepo {
             origin.branchCreate().setName("branch-3").call();
             origin.branchCreate().setName("branch-4").call();
 
+            // Create new new branch that is ahead of the default but has no build scripts so a build would fail
+            origin.branchCreate().setName("ahead").call();
+            Files.deleteIfExists(new File(originDir, "build.sh").toPath());
+            Files.deleteIfExists(new File(originDir, "build.bat").toPath());
+            origin.commit().setMessage("Second commit").call();
+
+            origin.checkout().setName(defaultBranch).call();
 
             return new AppRepo(name, originDir, origin);
         } catch (Exception e) {
@@ -44,5 +53,9 @@ public class AppRepo {
 
     public String gitUrl() {
         return originDir.toURI().toString();
+    }
+
+    public void close() {
+        origin.close();
     }
 }

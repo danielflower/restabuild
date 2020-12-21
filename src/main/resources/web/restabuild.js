@@ -21,8 +21,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var value = urlBox.value;
         var branch = branchBox.value;
         var buildParam = buildParamBox.value;
-        cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + '-F \'param=' + (buildParam || '') + '\' ' + form.action;
-        history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
+        cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + (branch ? ('-F \'branch=' + branch + '\' ') : '') + (buildParam ? ('-F \'param=' + buildParam + '\' ') : '') + form.action;
+        var encodedQS = '';
+        if (value) encodedQS += "&url="+encodeURIComponent(value);
+        if (branch) encodedQS += "&branch="+encodeURIComponent(branch);
+        if (buildParam) encodedQS += "&param="+encodeURIComponent(buildParam);
+        if (encodedQS) encodedQS = "?"+encodedQS.slice(1);
+        history.replaceState(null, null, encodeURI(path) + encodedQS);
     };
     urlBox.addEventListener('input', update);
     branchBox.addEventListener('input', update);

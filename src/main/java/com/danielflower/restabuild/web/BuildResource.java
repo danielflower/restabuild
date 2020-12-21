@@ -12,6 +12,7 @@ import io.muserver.MuResponse;
 import io.muserver.rest.ApiResponse;
 import io.muserver.rest.Description;
 import io.muserver.rest.ResponseHeader;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -51,7 +52,7 @@ public class BuildResource {
     @ApiResponse(code = "400", message = "No gitUrl form parameter was specified.", contentType = "text/plain")
     public Response create(@FormParam("gitUrl") @Description(value = "The URL of a git repo that includes a `build.sh` or `build.bat` file. " +
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
-                           @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
+                           @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
                            @Context UriInfo uriInfo) {
         BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
@@ -69,11 +70,7 @@ public class BuildResource {
             throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
         }
 
-        String gitBranch = branch;
-        if(null == branch || branch.trim().isEmpty()) {
-            gitBranch = "master";
-        }
-
+        String gitBranch = StringUtils.trimToNull(branch);
         GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
         String id = UUID.randomUUID().toString().replace("-", "");
         Map<String, String> environment = getEnrichedEnvironment(id, uriInfo);
