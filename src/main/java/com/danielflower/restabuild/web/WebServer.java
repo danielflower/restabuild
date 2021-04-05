@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static io.muserver.ContextHandlerBuilder.context;
 import static io.muserver.MuServerBuilder.muServer;
@@ -28,6 +29,8 @@ public class WebServer implements AutoCloseable {
         boolean hasContext = !Mutils.nullOrEmpty(context);
         MuServer server = muServer()
             .withHttpPort(port)
+            .withIdleTimeout(60, TimeUnit.MINUTES)
+            .withRequestTimeout(20, TimeUnit.MINUTES)
             .addHandler((request, response) -> {
                 log.info(request.toString());
                 if (hasContext) {

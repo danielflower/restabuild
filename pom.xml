@@ -89,12 +89,12 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20201115</version>
+            <version>20210307</version>
         </dependency>
         <dependency>
             <groupId>io.muserver</groupId>
             <artifactId>mu-server</artifactId>
-            <version>0.56.2</version>
+            <version>0.60.6</version>
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
