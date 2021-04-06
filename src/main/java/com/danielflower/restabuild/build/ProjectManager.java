@@ -16,6 +16,7 @@ import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.transport.FetchResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,12 +97,14 @@ public class ProjectManager implements AutoCloseable {
         public final String commitIDAfterBuild;
         public final List<String> tagsAdded;
         public final File workDir;
-        ExtendedBuildState(BuildState buildState, String commitIDBeforeBuild, String commitIDAfterBuild, List<String> tagsAdded, File workDir) {
+        public final String branch;
+        ExtendedBuildState(BuildState buildState, String commitIDBeforeBuild, String commitIDAfterBuild, List<String> tagsAdded, File workDir, String branch) {
             this.buildState = buildState;
             this.commitIDBeforeBuild = commitIDBeforeBuild;
             this.commitIDAfterBuild = commitIDAfterBuild;
             this.tagsAdded = tagsAdded;
             this.workDir = workDir;
+            this.branch = branch;
         }
     }
 
@@ -110,10 +113,11 @@ public class ProjectManager implements AutoCloseable {
         final File workDir;
         final ExtendedBuildState extendedBuildState;
         try (Git git = pullFromGitAndCopyWorkingCopyToNewDir(outputHandler, branch)) {
+            branch = git.getRepository().getBranch();
             workDir = git.getRepository().getWorkTree();
             doubleLog(outputHandler, "Created new instance in " + dirPath(workDir));
 
-            Ref headBefore = git.getRepository().exactRef("HEAD");
+            Ref headBefore = git.getRepository().exactRef(Constants.HEAD);
             Ref headAfter = headBefore;
             ObjectId beforeCommitID = headBefore.getObjectId();
             List<String> newTags = new ArrayList<>();
@@ -140,7 +144,7 @@ public class ProjectManager implements AutoCloseable {
                 ProcessStarter processStarter = new ProcessStarter(outputHandler);
                 result = processStarter.run(outputHandler, command, workDir, TimeUnit.MINUTES.toMillis(buildTimeout), environment);
 
-                headAfter = git.getRepository().exactRef("HEAD");
+                headAfter = git.getRepository().exactRef(Constants.HEAD);
 
                 try (RevWalk walk = new RevWalk(git.getRepository())) {
                     walk.markStart(walk.parseCommit(headAfter.getObjectId()));
@@ -154,7 +158,7 @@ public class ProjectManager implements AutoCloseable {
 
             newTags.removeAll(tagsBefore);
 
-            extendedBuildState = new ExtendedBuildState(result, beforeCommitID.name(), headAfter.getObjectId().name(), Collections.unmodifiableList(newTags), workDir);
+            extendedBuildState = new ExtendedBuildState(result, beforeCommitID.name(), headAfter.getObjectId().name(), Collections.unmodifiableList(newTags), workDir, branch);
         }
 
         deleteDirectoryQuietly(workDir, StandardDeleteOption.OVERRIDE_READ_ONLY);
@@ -169,8 +173,51 @@ public class ProjectManager implements AutoCloseable {
     }
 
     private Git pullFromGitAndCopyWorkingCopyToNewDir(Writer writer, String branch) throws GitAPIException, IOException {
-        git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
+        FetchResult fetchResult = git.fetch().setRemote("origin").setProgressMonitor(new TextProgressMonitor(writer)).call();
+        if (branch == null) {
+            Ref ref = findBranchToBuild(fetchResult);
+            if (ref == null) {
+                throw new RuntimeException("Could not determine default branch to build");
+            } else {
+                branch = StringUtils.removeStart(ref.getName(), Constants.R_HEADS);
+            }
+            doubleLog(writer, "Building default branch: "+branch);
+        } else {
+            doubleLog(writer, "Building branch: "+branch);
+        }
         return copyToNewInstanceDirAndSwitchBranch(branch);
+    }
+
+    private Ref findBranchToBuild(FetchResult result) {
+        final Ref headRef = result.getAdvertisedRef(Constants.HEAD);
+        if (headRef == null) {
+            return null;
+        }
+
+        if (headRef.isSymbolic()) {
+            return headRef.getTarget();
+        }
+
+        final ObjectId headObjectId = headRef.getObjectId();
+        if (headObjectId == null) {
+            return null;
+        }
+
+        final Ref masterRef = result.getAdvertisedRef(Constants.R_HEADS + Constants.MASTER);
+        if (masterRef != null && headObjectId.equals(masterRef.getObjectId())) {
+            return masterRef;
+        }
+
+        for (Ref adRef : result.getAdvertisedRefs()) {
+            if (!adRef.getName().startsWith(Constants.R_HEADS)) {
+                continue;
+            }
+            if (headObjectId.equals(adRef.getObjectId())) {
+                return adRef;
+            }
+        }
+
+        return null;
     }
 
     private Git copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {
