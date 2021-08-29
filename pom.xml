@@ -6,7 +6,7 @@
 
     <groupId>com.danielflower.apprunner</groupId>
     <artifactId>restabuild</artifactId>
-    <version>0.6-SNAPSHOT</version>
+    <version>0.8-SNAPSHOT</version>
 
     <name>RestaBuild</name>
     <description>Builds Git-hosted projects via a REST API</description>
