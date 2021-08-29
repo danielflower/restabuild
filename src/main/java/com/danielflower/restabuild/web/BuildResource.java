@@ -4,7 +4,7 @@ import com.danielflower.restabuild.FileSandbox;
 import com.danielflower.restabuild.build.BuildDatabase;
 import com.danielflower.restabuild.build.BuildQueue;
 import com.danielflower.restabuild.build.BuildResult;
-import com.danielflower.restabuild.build.GitRepo;
+import com.danielflower.restabuild.build.RepoBranch;
 import io.muserver.ContentTypes;
 import io.muserver.HeaderNames;
 import io.muserver.HeaderValues;
@@ -12,16 +12,20 @@ import io.muserver.MuResponse;
 import io.muserver.rest.ApiResponse;
 import io.muserver.rest.Description;
 import io.muserver.rest.ResponseHeader;
+import org.eclipse.jgit.transport.URIish;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 @Path("api/v1/builds")
@@ -29,13 +33,15 @@ import java.util.stream.Collectors;
 public class BuildResource {
 
     private final FileSandbox fileSandbox;
-    private final BuildQueue buildQueue;
     private final BuildDatabase database;
+    private final BuildQueue buildQueue;
+    private final ExecutorService executorService;
 
-    public BuildResource(FileSandbox fileSandbox, BuildQueue buildQueue, BuildDatabase database) {
+    public BuildResource(FileSandbox fileSandbox, BuildDatabase database, BuildQueue buildQueue, ExecutorService executorService) {
         this.fileSandbox = fileSandbox;
         this.buildQueue = buildQueue;
         this.database = database;
+        this.executorService = executorService;
     }
 
     @POST
@@ -53,7 +59,7 @@ public class BuildResource {
         "It can be any type of Git URL (e.g. SSH or HTTPS) that the server has permission for.", example = "https://github.com/3redronin/mu-server-sample.git") String gitUrl,
                            @DefaultValue("master") @FormParam("branch") @Description(value = "The value of the git branch. This parameter is optional.") String branch,
                            @FormParam("buildParam") @Description(value = "The parameter for the `build.sh` or `build.bat` file. This parameter is optional.") String buildParam,
-                           @Context UriInfo uriInfo) {
+                           @Context UriInfo uriInfo) throws IOException {
         BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
@@ -65,22 +71,34 @@ public class BuildResource {
     }
 
     private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
-        if (gitUrl == null || gitUrl.isEmpty()) {
-            throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
-        }
+        URIish gitURIish = validateGitUrl(gitUrl);
 
         String gitBranch = branch;
         if(null == branch || branch.trim().isEmpty()) {
             gitBranch = "master";
         }
 
-        GitRepo gitRepo = new GitRepo(gitUrl, gitBranch);
+        RepoBranch repoBranch = new RepoBranch(gitURIish, gitBranch);
         String id = UUID.randomUUID().toString().replace("-", "");
         Map<String, String> environment = getEnrichedEnvironment(id, uriInfo);
-        BuildResult result = new BuildResult(fileSandbox, gitRepo, buildParam, id, environment);
+        BuildResult result = new BuildResult(fileSandbox, repoBranch, buildParam, id, environment, executorService);
         database.save(result);
         buildQueue.enqueue(result);
         return result;
+    }
+
+    @NotNull
+    private URIish validateGitUrl(String gitUrl) {
+        if (gitUrl == null || gitUrl.isEmpty()) {
+            throw new BadRequestException("A form parameter named gitUrl must point to a valid git repo");
+        }
+        URIish gitURIish;
+        try {
+            gitURIish = new URIish(gitUrl);
+        } catch (URISyntaxException e) {
+            throw new BadRequestException("An invalid Git URL was specified: " + e.getMessage());
+        }
+        return gitURIish;
     }
 
     private Map<String, String> getEnrichedEnvironment(String buildId, UriInfo uriInfo) {
@@ -125,10 +143,38 @@ public class BuildResource {
         }
     }
 
+    @POST
+    @Path("{id}/cancel")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Description("Cancels an in-progress build")
+    @ApiResponse(code="200", message="Success")
+    @ApiResponse(code="404", message="No build with that ID exists", contentType = "text/plain")
+    @ApiResponse(code="409", message="The build was not in a cancelable state", contentType = "text/plain")
+    public String cancel(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
+                          String id, @Context UriInfo uriInfo) throws InterruptedException {
+        Optional<BuildResult> obr = database.get(id);
+        if (obr.isPresent()) {
+            BuildResult br = obr.get();
+            try {
+                br.cancel();
+                UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/cancel", ""));
+                return jsonForResult(buildPath, br).toString(4);
+            } catch (IllegalStateException ise) {
+                throw new ClientErrorException(ise.getMessage(), Response.Status.CONFLICT);
+            }
+        } else {
+            throw new NotFoundException();
+        }
+    }
+
     private static JSONObject jsonForResult(UriBuilder resourcePath, BuildResult result) {
-        return result.toJson()
+        JSONObject json = result.toJson()
             .put("url", resourcePath.replaceQuery(null).build())
-            .put("logUrl", resourcePath.path("log").replaceQuery(null).build());
+            .put("logUrl", resourcePath.clone().path("log").replaceQuery(null).build());
+        if (result.isCancellable()) {
+            json.put("cancelUrl", resourcePath.clone().path("cancel").replaceQuery(null).build());
+        }
+        return json;
     }
 
     @GET

@@ -12,6 +12,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.danielflower.restabuild.Config.SERVER_PORT;
 import static com.danielflower.restabuild.FileSandbox.dirPath;
@@ -21,7 +24,7 @@ public class App {
     private final Config config;
     private WebServer webServer;
     private BuildQueue buildQueue;
-    private BuildDatabase database;
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     public App(Config config) {
         this.config = config;
@@ -39,13 +42,16 @@ public class App {
 
         int appRunnerPort = config.getInt(SERVER_PORT);
 
-        database = new BuildDatabase();
-        buildQueue = new BuildQueue(config.getInt(Config.CONCURRENT_BUILDS), config.getInt(Config.TIMEOUT, 30));
+        BuildDatabase database = new BuildDatabase();
+        int buildTimeoutMinutes = config.getInt(Config.TIMEOUT, 30);
+        int numberOfConcurrentBuilds = config.getInt(Config.CONCURRENT_BUILDS);
+
+        buildQueue = new BuildQueue(numberOfConcurrentBuilds, buildTimeoutMinutes, config.deletePolicy());
         buildQueue.start();
 
-        BuildResource buildResource = new BuildResource(fileSandbox, buildQueue, database);
+        BuildResource buildResource = new BuildResource(fileSandbox, database, buildQueue, executorService);
         String context = Mutils.trim(config.get(Config.CONTEXT, "restabuild"), "/");
-        webServer = WebServer.start(appRunnerPort, context, buildResource);
+        webServer = WebServer.start(appRunnerPort, context, buildResource, buildTimeoutMinutes);
     }
 
     private void deleteOldTempFiles(File tempDir) {
@@ -60,8 +66,17 @@ public class App {
 
     public void shutdown() {
         log.info("Shutdown invoked");
+        try {
+            log.info("Stopping queue.....");
+            buildQueue.stop();
+            executorService.shutdownNow();
+            boolean allStopped = executorService.awaitTermination(2, TimeUnit.MINUTES);
+            log.info("Queue stopped? " + allStopped);
+        } catch (InterruptedException e) {
+            log.info("Interrupted");
+        }
         if (webServer != null) {
-            log.info("Stopping web server");
+            log.info("Stopping web server on port " + webServer.server.uri().getPort());
             try {
                 webServer.close();
             } catch (Exception e) {
@@ -69,13 +84,6 @@ public class App {
             }
             log.info("Shutdown complete");
             webServer = null;
-        }
-        try {
-            log.info("Stopping queue.....");
-            buildQueue.stop();
-            log.info("Queue stopped");
-        } catch (InterruptedException e) {
-            log.info("Interrupted");
         }
     }
 

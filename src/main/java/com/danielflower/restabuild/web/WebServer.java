@@ -25,12 +25,12 @@ public class WebServer implements AutoCloseable {
         this.server = server;
     }
 
-    public static WebServer start(int port, String context, BuildResource buildResource) throws IOException {
+    public static WebServer start(int port, String context, BuildResource buildResource, int buildTimeoutMinutes) throws IOException {
         boolean hasContext = !Mutils.nullOrEmpty(context);
         MuServer server = muServer()
             .withHttpPort(port)
-            .withIdleTimeout(60, TimeUnit.MINUTES)
-            .withRequestTimeout(20, TimeUnit.MINUTES)
+            .withIdleTimeout(buildTimeoutMinutes + 1, TimeUnit.MINUTES)
+            .withRequestTimeout(buildTimeoutMinutes + 1, TimeUnit.MINUTES)
             .addHandler((request, response) -> {
                 log.info(request.toString());
                 if (hasContext) {
@@ -59,7 +59,7 @@ public class WebServer implements AutoCloseable {
                     .addHandler(fileOrClasspath("src/main/resources/web", "/web")))
             .start();
 
-        log.info("Started web server at {}", server.uri().resolve(hasContext ? "/" + context + "/" : "/").toString());
+        log.info("Started web server at {}", server.uri().resolve(hasContext ? "/" + context + "/" : "/"));
         return new WebServer(server);
     }
 

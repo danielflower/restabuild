@@ -1,6 +1,7 @@
 package com.danielflower.restabuild.web;
 
-import com.danielflower.restabuild.build.ProjectManager;
+import com.danielflower.restabuild.build.BuildResult;
+import com.danielflower.restabuild.build.RemoteGitRepo;
 import io.muserver.*;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class IndexHtmlHandler implements RouteHandler {
         String version = coalesce(getClass().getPackage().getImplementationVersion(), "dev");
 
         template = new String(Mutils.toByteArray(IndexHtmlHandler.class.getResourceAsStream("/web/index.html"), 8192), "UTF-8")
-            .replace("{{buildfilename}}", ProjectManager.buildFile)
+            .replace("{{buildfilename}}", BuildResult.buildFile)
             .replace("{{restabuildversion}}", version);
     }
 

@@ -1,29 +1,38 @@
 package com.danielflower.restabuild.build;
 
+import com.danielflower.restabuild.Config;
 import com.danielflower.restabuild.FileSandbox;
-import io.muserver.Mutils;
 import org.apache.commons.io.FileUtils;
+import org.eclipse.jgit.lib.ObjectId;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class BuildResult {
+    private static final Logger log = LoggerFactory.getLogger(BuildResult.class);
+    public static String buildFile = Config.isWindows() ? "build.bat" : "build.sh";
+
     private final Object lock = new Object();
     public final String id;
     private final FileSandbox sandbox;
     private final File buildDir;
-    private volatile BuildState state = BuildState.QUEUED;
-    private final GitRepo gitRepo;
-    private volatile StringBuffer buildLog = new StringBuffer();
+    private volatile BuildStatus status = BuildStatus.QUEUED;
+    private final RepoBranch repoBranch;
+    private final StringBuffer buildLog = new StringBuffer();
     private final File buildLogFile;
-    private final List<StringListener> logListeners = new CopyOnWriteArrayList<>();
     public final long queueStart = System.currentTimeMillis();
     private long buildStart = -1;
     private long buildComplete = -1;
@@ -31,12 +40,17 @@ public class BuildResult {
     private String commitIDAfterBuild;
     private List<String> createdTags;
     private final String buildParam;
+    private final ExecutorService executorService;
     private final Map<String, String> environment;
+    private final List<BuildResult.StringListener> logListeners = new CopyOnWriteArrayList<>();
+    private volatile BuildProcess buildProcess;
 
-    public BuildResult(FileSandbox sandbox, GitRepo gitRepo, String buildParam, String id, Map<String, String> environment) {
+
+    public BuildResult(FileSandbox sandbox, RepoBranch repoBranch, String buildParam, String id, Map<String, String> environment, ExecutorService executorService) {
         this.sandbox = sandbox;
-        this.gitRepo = gitRepo;
+        this.repoBranch = repoBranch;
         this.buildParam = buildParam;
+        this.executorService = executorService;
         this.buildDir = sandbox.buildDir(id);
         this.buildLogFile = new File(buildDir, "build.log");
         this.id = id;
@@ -44,17 +58,25 @@ public class BuildResult {
     }
 
     public boolean hasFinished() {
-        return state == BuildState.SUCCESS || state == BuildState.FAILURE;
+        synchronized (lock) {
+            return status.endState();
+        }
+    }
+
+    public boolean isCancellable() {
+        synchronized (lock) {
+            return status.isCancellable();
+        }
     }
 
     public String log() throws IOException {
-        if (state == BuildState.QUEUED) {
+        if (status == BuildStatus.QUEUED) {
             return "Build not started.";
         }
 
         synchronized (lock) {
             if (!hasFinished()) {
-                return "Build in progress: " + buildLog.toString();
+                return "Build in progress: " + buildLog;
             }
         }
         return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
@@ -64,49 +86,60 @@ public class BuildResult {
         long queueDuration = buildStart < 0 ? (System.currentTimeMillis() - queueStart) : (buildStart - queueStart);
         JSONObject build = new JSONObject()
             .put("id", id)
-            .put("gitUrl", gitRepo.url)
-            .put("gitBranch", gitRepo.branch)
+            .put("gitUrl", repoBranch.url)
+            .put("gitBranch", repoBranch.branch)
             .put("buildParam", buildParam == null ? "" : buildParam)
-            .put("status", state.name())
+            .put("status", status.name())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
             .put("queueDurationMillis", queueDuration)
             .put("commitIDBeforeBuild", this.commitIDBeforeBuild)
             .put("commitIDAfterBuild", this.commitIDAfterBuild)
-            .put("tagsCreated", new JSONArray(Mutils.coalesce(createdTags, Collections.<String>emptyList())));
+            .put("tagsCreated", createdTags == null ? new JSONArray() : new JSONArray(createdTags));
         if (buildStart > 0) {
             long buildDuration = buildComplete < 0 ? (System.currentTimeMillis() - buildStart) : (buildComplete - buildStart);
             build.put("buildDurationMillis", buildDuration);
         }
+        BuildProcess bp = this.buildProcess;
+        if (bp != null) {
+            var tree = bp.currentProcessTree();
+            if (tree != null) {
+                build.put("processTree", tree.toJSON());
+            }
+        }
         return build;
     }
 
-    public void run(int buildTimeout) throws Exception {
-        BuildState newState = state = BuildState.IN_PROGRESS;
-        ProjectManager.ExtendedBuildState extendedBuildState = null;
+    public void run(int buildTimeoutMins, DeletePolicy instanceDirDeletePolicy) throws IOException {
+        long timeoutMillis = TimeUnit.MINUTES.toMillis(buildTimeoutMins);
         buildStart = System.currentTimeMillis();
-        try (FileWriter logFileWriter = new FileWriter(buildLogFile);
-             Writer writer = new MultiWriter(logFileWriter)) {
-            try (ProjectManager pm = ProjectManager.create(gitRepo.url, sandbox, writer)) {
-                extendedBuildState = pm.build(writer, gitRepo.branch, buildParam, buildTimeout, environment);
-                newState = extendedBuildState.buildState;
-            } catch (Exception ex) {
-                writer.write("\n\nERROR: " + ex.getMessage());
-                ex.printStackTrace(new PrintWriter(writer));
-                newState = BuildState.FAILURE;
-            }
-        } finally {
-            buildComplete = System.currentTimeMillis();
-            FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
+        MultiWriter logWriter = new MultiWriter();
+        BuildProcess bp = new BuildProcess((buildProcess, oldStatus, newStatus) -> {
             synchronized (lock) {
-                state = newState;
-                buildLog = null;
-                if (extendedBuildState != null) {
-                    this.commitIDBeforeBuild = extendedBuildState.commitIDBeforeBuild;
-                    this.commitIDAfterBuild = extendedBuildState.commitIDAfterBuild;
-                    this.createdTags = extendedBuildState.tagsAdded;
+                try {
+                    buildComplete = System.currentTimeMillis();
+                    status = newStatus;
+                    commitIDBeforeBuild = commitName(buildProcess.commitIDBeforeBuild());
+                    commitIDAfterBuild = commitName(buildProcess.commitIDAfterBuild());
+                    if (newStatus.endState()) {
+                        createdTags = buildProcess.createdTags();
+                        FileUtils.write(new File(buildDir, "build.json"), toJson().toString(4), StandardCharsets.UTF_8);
+                        buildLog.setLength(0);
+                        this.buildProcess = null;
+                    }
+                } finally {
+                    if (newStatus.endState()) {
+                        log.info("Closing log file writer");
+                        logWriter.close();
+                    }
                 }
             }
-        }
+        }, logWriter, executorService,timeoutMillis, environment, buildParam, repoBranch, sandbox, instanceDirDeletePolicy);
+        this.buildProcess = bp;
+        bp.start();
+    }
+
+    private static String commitName(ObjectId objectId) {
+        return objectId == null ? null : objectId.name();
     }
 
     public void streamLog(StringListener writer) throws IOException {
@@ -118,12 +151,22 @@ public class BuildResult {
         logListeners.remove(writer);
     }
 
+    public void cancel() throws InterruptedException {
+        BuildProcess bp = this.buildProcess;
+        if (bp != null) {
+            bp.cancel(BuildStatus.CANCELLED);
+        }
+    }
 
-    private class MultiWriter extends Writer {
+    public interface StringListener {
+        void onString(String value);
+    }
+
+    public class MultiWriter extends Writer {
         private final FileWriter logFileWriter;
 
-        MultiWriter(FileWriter logFileWriter) {
-            this.logFileWriter = logFileWriter;
+        MultiWriter() throws IOException {
+            this.logFileWriter = new FileWriter(buildLogFile);
         }
 
         public void write(char[] cbuf, int off, int len) throws IOException {
@@ -131,7 +174,7 @@ public class BuildResult {
             logFileWriter.write(cbuf, off, len);
             if (!logListeners.isEmpty()) {
                 String m = new String(cbuf, off, len);
-                for (StringListener logListener : logListeners) {
+                for (BuildResult.StringListener logListener : logListeners) {
                     logListener.onString(m);
                 }
             }
@@ -146,9 +189,4 @@ public class BuildResult {
             logListeners.clear();
         }
     }
-
-    public interface StringListener {
-        void onString(String value);
-    }
-
 }

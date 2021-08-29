@@ -3,6 +3,7 @@ package com.danielflower.restabuild.build;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.ClientErrorException;
 import java.util.concurrent.*;
 
 public class BuildQueue {
@@ -14,14 +15,17 @@ public class BuildQueue {
     private final int numberOfConcurrentBuilds;
     private final int buildTimeout;
     private volatile boolean isRunning = false;
+    private final DeletePolicy instanceDirDeletePolicy;
 
-    public BuildQueue(int numberOfConcurrentBuilds, int buildTimeout) {
+    public BuildQueue(int numberOfConcurrentBuilds, int buildTimeout, DeletePolicy instanceDirDeletePolicy) {
         this.numberOfConcurrentBuilds = numberOfConcurrentBuilds;
         this.buildTimeout = buildTimeout;
         this.executorService = Executors.newFixedThreadPool(numberOfConcurrentBuilds);
+        this.instanceDirDeletePolicy = instanceDirDeletePolicy;
     }
 
     public void enqueue(BuildResult buildResult) {
+        if (!isRunning) throw new ClientErrorException("Restabuild is not accepting builds at this time", 400);
         queue.add(buildResult);
     }
 
@@ -36,7 +40,7 @@ public class BuildQueue {
         while (isRunning) {
             try {
                 BuildResult build = queue.take();
-                build.run(buildTimeout);
+                build.run(buildTimeout, instanceDirDeletePolicy);
             } catch (Throwable t) {
                 if (isRunning) {
                     log.error("Error in the build loop", t);

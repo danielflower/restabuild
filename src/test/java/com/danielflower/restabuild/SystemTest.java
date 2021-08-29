@@ -1,6 +1,6 @@
 package com.danielflower.restabuild;
 
-import com.danielflower.restabuild.build.BuildState;
+import com.danielflower.restabuild.build.BuildStatus;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.util.Fields;
@@ -14,11 +14,13 @@ import org.junit.Test;
 import scaffolding.AppRepo;
 import scaffolding.RestClient;
 
+import java.net.URI;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static scaffolding.AssertUtil.assertEventually;
 
 public class SystemTest {
 
@@ -69,11 +71,11 @@ public class SystemTest {
         JSONObject buildResource;
         while (true) {
             buildResource = new JSONObject(client.GET(url).getContentAsString());
-            BuildState status = BuildState.valueOf(buildResource.getString("status"));
+            BuildStatus status = BuildStatus.valueOf(buildResource.getString("status"));
 
-            assertThat(buildResource.toString(), status, not(equalTo(BuildState.FAILURE)));
+            assertThat(buildResource.toString(), status, not(equalTo(BuildStatus.FAILURE)));
 
-            if (status == BuildState.SUCCESS) {
+            if (status == BuildStatus.SUCCESS) {
                 break;
             }
             if (attempts > 2000) {
@@ -116,9 +118,9 @@ public class SystemTest {
 
         String log = client.GET(logUrl).getContentAsString();
         JSONObject buildResource = new JSONObject(client.GET(url).getContentAsString());
-        BuildState status = BuildState.valueOf(buildResource.getString("status"));
+        BuildStatus status = BuildStatus.valueOf(buildResource.getString("status"));
 
-        assertThat(status, equalTo(BuildState.SUCCESS));
+        assertThat(status, equalTo(BuildStatus.SUCCESS));
         assertThat(log, containsString("BUILD SUCCESS"));
 
         // Make sure getting it after completion still works
@@ -140,9 +142,9 @@ public class SystemTest {
         String log = client.GET(logUrl).getContentAsString();
 
         JSONObject buildResource = new JSONObject(client.GET(url).getContentAsString());
-        BuildState status = BuildState.valueOf(buildResource.getString("status"));
+        BuildStatus status = BuildStatus.valueOf(buildResource.getString("status"));
 
-        assertThat(status, equalTo(BuildState.FAILURE));
+        assertThat(status, equalTo(BuildStatus.FAILURE));
 
         assertThat(log, Matchers.anyOf(
             containsString("Please place a file called build.bat in the root of your repo"),
@@ -165,4 +167,27 @@ public class SystemTest {
         ));
     }
 
+    @Test
+    public void canCancelBuilds() throws Exception {
+        AppRepo appRepo = AppRepo.create("hung-build");
+        JSONObject build = new JSONObject(createBuild(appRepo).getContentAsString());
+        URI resourceUrl = URI.create(build.getString("url"));
+        URI cancelUrl = URI.create(build.getString("cancelUrl"));
+
+        assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).getString("status"), equalTo("IN_PROGRESS"));
+        System.out.println("cancelUrl = " + cancelUrl);
+
+        assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).toString(4), containsString("processTree"));
+
+        System.out.println("client.GET(resourceUrl).getContentAsString() = " + client.GET(resourceUrl).getContentAsString());
+
+        Thread.sleep(500);
+        ContentResponse cancelResp = client.POST(cancelUrl).send();
+        System.out.println("cancelResp = " + cancelResp);
+        assertThat(cancelResp.getStatus(), is(200));
+        assertThat(new JSONObject(cancelResp.getContentAsString()).getString(("url")), equalTo(resourceUrl.toString()));
+
+
+        assertEventually(() -> new JSONObject(client.GET(build.getString("url")).getContentAsString()).getString("status"), equalTo("CANCELLED"));
+    }
 }

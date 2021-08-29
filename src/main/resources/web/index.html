@@ -28,6 +28,14 @@
             margin-top: 50px;
             font-size: smaller;
         }
+
+        .buildHistory form {
+            display: inline;
+        }
+        .buildHistory button {
+            margin: 0 0 0 6px;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
@@ -56,9 +64,15 @@
 <p>...or use curl:</p>
 <div><code id="curlCommand">curl</code></div>
 
-<h2>View builds</h2>
 
-<ul id="recentBuilds"></ul>
+<div class="buildHistory">
+    <h2>View builds</h2>
+    <ul id="recentBuilds"></ul>
+    <div class="historyButtons">
+        <button type="button" id="olderBuildsButton">Older</button>
+        <button type="button" id="newerBuildsButton">Newer</button>
+    </div>
+</div>
 
 <p>Use the API at <a href="api/v1/builds" id="apiLink">api/v1/builds</a> or see <a href="api.html">API documentation</a>.</p>
 

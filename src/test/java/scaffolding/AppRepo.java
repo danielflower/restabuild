@@ -1,9 +1,12 @@
 package scaffolding;
 
+import com.danielflower.restabuild.build.RepoBranch;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.InitCommand;
+import org.eclipse.jgit.transport.URIish;
 
 import java.io.File;
+import java.net.URISyntaxException;
 
 import static scaffolding.Photocopier.copySampleAppToTempDir;
 
@@ -40,6 +43,14 @@ public class AppRepo {
         this.name = name;
         this.originDir = originDir;
         this.origin = origin;
+    }
+
+    public RepoBranch toRepoBranch(String branch) {
+        try {
+            return new RepoBranch(new URIish(gitUrl()), branch);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("URIish!!", e);
+        }
     }
 
     public String gitUrl() {

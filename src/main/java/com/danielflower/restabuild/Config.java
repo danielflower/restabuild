@@ -1,5 +1,6 @@
 package com.danielflower.restabuild;
 
+import com.danielflower.restabuild.build.DeletePolicy;
 import com.danielflower.restabuild.build.RestaBuildException;
 import com.danielflower.restabuild.build.InvalidConfigException;
 import org.apache.commons.io.FileUtils;
@@ -10,6 +11,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.danielflower.restabuild.FileSandbox.dirPath;
 
@@ -19,6 +22,7 @@ public class Config {
     public static final String CONTEXT = "restabuild.context";
     public static final String CONCURRENT_BUILDS = "restabuild.concurrent.builds";
     public static final String TIMEOUT = "restabuild.timeout";
+    public static final String DELETE_POLICY = "restabuild.delete.policy";
 
     public static Config load(String[] commandLineArgs) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());
@@ -59,6 +63,15 @@ public class Config {
         return s;
     }
 
+    public DeletePolicy deletePolicy() {
+        String value = get(DELETE_POLICY, DeletePolicy.ON_SUCCESS.name());
+        try {
+            return DeletePolicy.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new RestaBuildException("Invalid value (" + value + ") for " + DELETE_POLICY + " config. It should be one of " + Stream.of(DeletePolicy.values()).map(DeletePolicy::name).collect(Collectors.joining(", ")));
+        }
+    }
+
     public int getInt(String name) {
         String s = get(name);
         try {
@@ -86,6 +99,10 @@ public class Config {
             throw new RestaBuildException("Could not create " + dirPath(f));
         }
         return f;
+    }
+
+    public static boolean isWindows() {
+        return File.separatorChar == '\\';
     }
 
 }
