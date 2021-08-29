@@ -23,5 +23,8 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - run: git config --global user.email "test@example.com"
+      - run: git config --global user.name "Test user"
+
       - name: Build with Maven on JDK ${{ matrix.java }}
         run: mvn --batch-mode --update-snapshots verify
