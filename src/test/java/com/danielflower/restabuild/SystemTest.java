@@ -102,10 +102,19 @@ public class SystemTest {
 
         JSONArray builds = api.getJSONArray("builds");
         assertThat(builds.length(), greaterThanOrEqualTo(2));
-        assertThat(build1.toString(4), is(((JSONObject) builds.get(1)).toString(4)));
-        assertThat(build2.toString(4), is(((JSONObject) builds.get(0)).toString(4)));
+        assertBuildSameIgnoringProcessTree(build1, (JSONObject) builds.get(1));
+        assertBuildSameIgnoringProcessTree(build2, (JSONObject) builds.get(0));
     }
 
+    private void assertBuildSameIgnoringProcessTree(JSONObject one, JSONObject two) {
+        var copy1 = new JSONObject(one.toString());
+        copy1.remove("processTress");
+        copy1.remove("cancelUrl");
+        var copy2 = new JSONObject(two.toString());
+        copy2.remove("processTress");
+        copy2.remove("cancelUrl");
+        assertThat(copy1.toString(4), equalTo(copy2.toString(4)));
+    }
 
     @Test
     public void gettingTheLogBlocksUntilItIsComplete() throws Exception {
