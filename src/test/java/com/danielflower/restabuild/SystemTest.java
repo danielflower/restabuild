@@ -108,10 +108,10 @@ public class SystemTest {
 
     private void assertBuildSameIgnoringProcessTree(JSONObject one, JSONObject two) {
         var copy1 = new JSONObject(one.toString());
-        copy1.remove("processTress");
+        copy1.remove("processTree");
         copy1.remove("cancelUrl");
         var copy2 = new JSONObject(two.toString());
-        copy2.remove("processTress");
+        copy2.remove("processTree");
         copy2.remove("cancelUrl");
         assertThat(copy1.toString(4), equalTo(copy2.toString(4)));
     }
