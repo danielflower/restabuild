@@ -27,7 +27,7 @@ public class ProjectManagerTest {
     private final AppRepo appRepo = AppRepo.create("maven");
     private final int defaultTimeout = 30000;
     private final ExecutorService executor = Executors.newCachedThreadPool();
-    private final DeletePolicy instanceDirDeletePolicy = DeletePolicy.ON_SUCCESS;
+    private final DeletePolicy instanceDirDeletePolicy = DeletePolicy.NEVER;
     private final AtomicReference<BuildStatus> endStatus = new AtomicReference<>(null);
     private final BuildProcessListener endStatusSetter = (buildProcess, oldStatus, newStatus) -> {
         endStatus.set(newStatus);
