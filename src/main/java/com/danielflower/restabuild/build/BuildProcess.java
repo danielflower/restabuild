@@ -221,8 +221,9 @@ public class BuildProcess {
 
                         }
                     } finally {
-                        if (instanceDirDeletePolicy.shouldDelete(status)) {
-                            RemoteGitRepo.deleteDirectoryQuietly(workDir, StandardDeleteOption.OVERRIDE_READ_ONLY);
+                        var wd = workDir;
+                        if (instanceDirDeletePolicy.shouldDelete(status) && wd != null) {
+                            RemoteGitRepo.deleteDirectoryQuietly(wd, StandardDeleteOption.OVERRIDE_READ_ONLY);
                         }
                     }
 
