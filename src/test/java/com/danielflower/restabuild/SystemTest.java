@@ -5,6 +5,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.util.Fields;
 import org.hamcrest.Matchers;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.AfterClass;
@@ -15,6 +16,8 @@ import scaffolding.AppRepo;
 import scaffolding.RestClient;
 
 import java.net.URI;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -25,12 +28,13 @@ import static scaffolding.AssertUtil.assertEventually;
 public class SystemTest {
 
     private static App app;
+    private static Config config;
     private final HttpClient client = RestClient.instance;
 
 
     @BeforeClass
     public static void start() throws Exception {
-        Config config = Config.load(new String[]{"sample-config.properties"});
+        config = Config.load(new String[]{"sample-config.properties"});
         app = new App(config);
         app.start();
     }
@@ -139,7 +143,12 @@ public class SystemTest {
     private ContentResponse createBuild(AppRepo appRepo) throws InterruptedException, ExecutionException, TimeoutException {
         Fields fields = new Fields();
         fields.add("gitUrl", appRepo.gitUrl());
-        return client.FORM(app.uri().resolve("/restabuild/api/v1/builds"), fields);
+        return client.FORM(buildsUrl(), fields);
+    }
+
+    @NotNull
+    private URI buildsUrl() {
+        return app.uri().resolve("/restabuild/api/v1/builds");
     }
 
     @Test
@@ -184,19 +193,44 @@ public class SystemTest {
         URI cancelUrl = URI.create(build.getString("cancelUrl"));
 
         assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).getString("status"), equalTo("IN_PROGRESS"));
-        System.out.println("cancelUrl = " + cancelUrl);
-
         assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).toString(4), containsString("processTree"));
-
-        System.out.println("client.GET(resourceUrl).getContentAsString() = " + client.GET(resourceUrl).getContentAsString());
 
         Thread.sleep(500);
         ContentResponse cancelResp = client.POST(cancelUrl).send();
-        System.out.println("cancelResp = " + cancelResp);
         assertThat(cancelResp.getStatus(), is(200));
         assertThat(new JSONObject(cancelResp.getContentAsString()).getString(("url")), equalTo(resourceUrl.toString()));
-
-
         assertEventually(() -> new JSONObject(client.GET(build.getString("url")).getContentAsString()).getString("status"), equalTo("CANCELLED"));
+    }
+
+    @Test
+    public void canCancelQueuedBuilds() throws Exception {
+        AppRepo appRepo = AppRepo.create("hung-build");
+
+        int concurrent = config.getInt(Config.CONCURRENT_BUILDS);
+        List<URI> toCancel = new LinkedList<>();
+        for (int i = 0; i < concurrent; i++) {
+            var build = new JSONObject(createBuild(appRepo).getContentAsString());
+            toCancel.add(URI.create(build.getString("cancelUrl")));
+            Thread.sleep(100);
+        }
+
+        Thread.sleep(1000);
+        System.out.println(new JSONObject(client.GET(buildsUrl()).getContentAsString()).toString(4));
+
+        var queuedBuild = new JSONObject(createBuild(appRepo).getContentAsString());
+        var resourceUrl = URI.create(queuedBuild.getString("url"));
+        Thread.sleep(2000);
+        System.out.println("******************************");
+        System.out.println(new JSONObject(client.GET(buildsUrl()).getContentAsString()).toString(4));
+        assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).getString("status"), equalTo("QUEUED"));
+        var cancelURI = URI.create(queuedBuild.getString("cancelUrl"));
+        ContentResponse cancelResp = client.POST(cancelURI).send();
+        assertThat(cancelResp.getStatus(), equalTo(200));
+
+
+        for (URI uri : toCancel) {
+            client.POST(uri).send();
+        }
+
     }
 }

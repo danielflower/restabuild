@@ -111,10 +111,13 @@ public class BuildResult {
 
     public void run(int buildTimeoutMins, DeletePolicy instanceDirDeletePolicy) throws IOException {
         long timeoutMillis = TimeUnit.MINUTES.toMillis(buildTimeoutMins);
-        buildStart = System.currentTimeMillis();
         MultiWriter logWriter = new MultiWriter();
         BuildProcess bp = new BuildProcess((buildProcess, oldStatus, newStatus) -> {
             synchronized (lock) {
+                if (oldStatus == BuildStatus.QUEUED) {
+                    buildStart = System.currentTimeMillis();
+                }
+
                 try {
                     buildComplete = System.currentTimeMillis();
                     status = newStatus;

@@ -74,11 +74,13 @@ public class RemoteGitRepo {
 
 
     public Git pullFromGitAndCopyWorkingCopyToNewDir(String branch, long timeoutMillis, ProgressMonitor progressMonitor) throws GitAPIException, IOException {
-        try (Git git = getGit(progressMonitor)) {
-            git.fetch().setRemote("origin")
-                .setProgressMonitor(progressMonitor).setTimeout((int)TimeUnit.MILLISECONDS.toSeconds(timeoutMillis)).call();
+        synchronized (repoDir.getCanonicalPath().intern()) {
+            try (Git git = getGit(progressMonitor)) {
+                git.fetch().setRemote("origin")
+                    .setProgressMonitor(progressMonitor).setTimeout((int) TimeUnit.MILLISECONDS.toSeconds(timeoutMillis)).call();
+            }
+            return copyToNewInstanceDirAndSwitchBranch(branch);
         }
-        return copyToNewInstanceDirAndSwitchBranch(branch);
     }
 
     private Git copyToNewInstanceDirAndSwitchBranch(String branch) throws GitAPIException, IOException {

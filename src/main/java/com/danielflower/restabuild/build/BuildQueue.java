@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.ClientErrorException;
+import java.io.InterruptedIOException;
 import java.util.concurrent.*;
 
 public class BuildQueue {
@@ -20,7 +21,7 @@ public class BuildQueue {
     public BuildQueue(int numberOfConcurrentBuilds, int buildTimeout, DeletePolicy instanceDirDeletePolicy) {
         this.numberOfConcurrentBuilds = numberOfConcurrentBuilds;
         this.buildTimeout = buildTimeout;
-        this.executorService = Executors.newFixedThreadPool(numberOfConcurrentBuilds);
+        this.executorService = Executors.newFixedThreadPool(numberOfConcurrentBuilds + 1);
         this.instanceDirDeletePolicy = instanceDirDeletePolicy;
     }
 
@@ -31,9 +32,7 @@ public class BuildQueue {
 
     public void start() {
         isRunning = true;
-        for (int i = 0; i < numberOfConcurrentBuilds; i++) {
-            executorService.submit(this::buildLoop);
-        }
+        executorService.submit(this::buildLoop);
     }
 
     private void buildLoop() {
@@ -42,10 +41,12 @@ public class BuildQueue {
                 BuildResult build = queue.take();
                 build.run(buildTimeout, instanceDirDeletePolicy);
             } catch (Throwable t) {
+                if (t instanceof InterruptedException || t instanceof InterruptedIOException) {
+                    log.info("Build loop stopping");
+                    break;
+                }
                 if (isRunning) {
                     log.error("Error in the build loop", t);
-                } else {
-                    break;
                 }
             }
         }
