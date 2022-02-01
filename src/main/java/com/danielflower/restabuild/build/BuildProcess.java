@@ -108,7 +108,7 @@ public class BuildProcess {
             try {
                 buildProcessListener.onStatusChanged(this, oldStatus, newStatus);
             } catch (Exception e) {
-                log.error("Error while executing build listener callback from " + oldStatus + " to " + newStatus);
+                log.error("Error while executing build listener callback from " + oldStatus + " to " + newStatus, e);
                 this.status = BuildStatus.FAILURE;
             }
         }
