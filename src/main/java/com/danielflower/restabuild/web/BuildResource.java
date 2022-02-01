@@ -70,7 +70,7 @@ public class BuildResource {
             .build();
     }
 
-    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) {
+    private BuildResult createInternal(String gitUrl, String branch, String buildParam, UriInfo uriInfo) throws IOException {
         URIish gitURIish = validateGitUrl(gitUrl);
 
         String gitBranch = branch;
@@ -156,7 +156,7 @@ public class BuildResource {
         if (obr.isPresent()) {
             BuildResult br = obr.get();
             try {
-                br.cancel();
+                buildQueue.cancel(br);
                 UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/cancel", ""));
                 return jsonForResult(buildPath, br).toString(4);
             } catch (IllegalStateException ise) {

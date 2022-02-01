@@ -23,7 +23,7 @@ public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
     private final Config config;
     private WebServer webServer;
-    private BuildQueue buildQueue;
+    public BuildQueue buildQueue;
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     public App(Config config) {
@@ -47,7 +47,6 @@ public class App {
         int numberOfConcurrentBuilds = config.getInt(Config.CONCURRENT_BUILDS);
 
         buildQueue = new BuildQueue(numberOfConcurrentBuilds, buildTimeoutMinutes, config.deletePolicy());
-        buildQueue.start();
 
         BuildResource buildResource = new BuildResource(fileSandbox, database, buildQueue, executorService);
         String context = Mutils.trim(config.get(Config.CONTEXT, "restabuild"), "/");
@@ -67,11 +66,11 @@ public class App {
     public void shutdown() {
         log.info("Shutdown invoked");
         try {
-            log.info("Stopping queue.....");
+            log.info("Stopping builds.....");
             buildQueue.stop();
             executorService.shutdownNow();
             boolean allStopped = executorService.awaitTermination(2, TimeUnit.MINUTES);
-            log.info("Queue stopped? " + allStopped);
+            log.info("All stopped? " + allStopped);
         } catch (InterruptedException e) {
             log.info("Interrupted");
         }

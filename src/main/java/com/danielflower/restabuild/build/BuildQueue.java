@@ -3,59 +3,71 @@ package com.danielflower.restabuild.build;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.ClientErrorException;
-import java.io.InterruptedIOException;
-import java.util.concurrent.*;
+import javax.ws.rs.ServiceUnavailableException;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class BuildQueue {
     private static final Logger log = LoggerFactory.getLogger(BuildQueue.class);
 
-    private final ExecutorService executorService;
-
-    private final BlockingQueue<BuildResult> queue = new LinkedBlockingQueue<>();
+    private final Queue<BuildResult> queue = new LinkedList<>();
     private final int numberOfConcurrentBuilds;
     private final int buildTimeout;
-    private volatile boolean isRunning = false;
     private final DeletePolicy instanceDirDeletePolicy;
+    private int inProgressBuilds = 0;
+    private volatile boolean isRunning = true;
 
     public BuildQueue(int numberOfConcurrentBuilds, int buildTimeout, DeletePolicy instanceDirDeletePolicy) {
         this.numberOfConcurrentBuilds = numberOfConcurrentBuilds;
         this.buildTimeout = buildTimeout;
-        this.executorService = Executors.newFixedThreadPool(numberOfConcurrentBuilds + 1);
         this.instanceDirDeletePolicy = instanceDirDeletePolicy;
     }
 
-    public void enqueue(BuildResult buildResult) {
-        if (!isRunning) throw new ClientErrorException("Restabuild is not accepting builds at this time", 400);
-        queue.add(buildResult);
+    public int[] status() {
+        synchronized (queue) {
+            return new int[] {queue.size(), inProgressBuilds};
+        }
     }
 
-    public void start() {
-        isRunning = true;
-        executorService.submit(this::buildLoop);
+    public void stop() {
+        isRunning = false;
     }
 
-    private void buildLoop() {
-        while (isRunning) {
-            try {
-                BuildResult build = queue.take();
-                build.run(buildTimeout, instanceDirDeletePolicy);
-            } catch (Throwable t) {
-                if (t instanceof InterruptedException || t instanceof InterruptedIOException) {
-                    log.info("Build loop stopping");
-                    break;
-                }
-                if (isRunning) {
-                    log.error("Error in the build loop", t);
+    public void enqueue(BuildResult buildResult) throws IOException {
+        if (!isRunning) {
+            throw new ServiceUnavailableException("The build server is shutting down");
+        }
+        synchronized (queue) {
+            queue.add(buildResult);
+            log.info("Queued " + buildResult.id + "; new queue size: " + queue.size() + "; in progress: " + inProgressBuilds + "; total concurrent allowed: " + numberOfConcurrentBuilds);
+        }
+        startIfCapacity();
+    }
+
+    public void startIfCapacity() throws IOException {
+        synchronized (queue) {
+            if (inProgressBuilds < numberOfConcurrentBuilds) {
+                BuildResult build = queue.poll();
+                if (build != null) {
+                    build.run((buildProcess, oldStatus, newStatus) -> {
+                        if (newStatus.endState()) {
+                            synchronized (queue) {
+                                inProgressBuilds--;
+                                log.info("Build " + build.id + " completed with status " + newStatus + "; new queue size is " + inProgressBuilds);
+                            }
+                        }
+                    }, buildTimeout, instanceDirDeletePolicy);
+                    inProgressBuilds++;
                 }
             }
         }
     }
 
-    public void stop() throws InterruptedException {
-        isRunning = false;
-        executorService.shutdownNow();
-        executorService.awaitTermination(10, TimeUnit.MINUTES);
+    public void cancel(BuildResult buildResult) throws InterruptedException {
+        synchronized (queue) {
+            queue.remove(buildResult);
+            buildResult.cancel();
+        }
     }
-
 }

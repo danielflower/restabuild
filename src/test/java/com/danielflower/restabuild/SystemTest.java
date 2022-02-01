@@ -8,10 +8,7 @@ import org.hamcrest.Matchers;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import scaffolding.AppRepo;
 import scaffolding.RestClient;
 
@@ -44,6 +41,11 @@ public class SystemTest {
         app.shutdown();
     }
 
+    @After
+    public void buildsShouldBeEmpty() {
+        assertThat(app.buildQueue.status(), is(new int[] { 0, 0 }));
+    }
+
     @Test
     public void theRestApiCanBeUsedToBuildStuff() throws Exception {
         AppRepo appRepo = AppRepo.create("maven");
@@ -59,7 +61,7 @@ public class SystemTest {
 
         assertThat(build.getString("url"),
             equalTo("http://localhost:8080/restabuild/api/v1/builds/" + build.getString("id")));
-        waitForBuildToFinish(build);
+        waitForBuildToFinish(build, BuildStatus.SUCCESS);
 
         JSONObject afterBuild = new JSONObject(client.GET(build.getString("url")).getContentAsString());
         assertThat(afterBuild.has("commitIDBeforeBuild"), is(true));
@@ -68,7 +70,7 @@ public class SystemTest {
         assertThat(afterBuild.getJSONArray("tagsCreated").get(0), is("my-maven-app-1.0.0"));
     }
 
-    private JSONObject waitForBuildToFinish(JSONObject build) throws InterruptedException, ExecutionException, TimeoutException {
+    private JSONObject waitForBuildToFinish(JSONObject build, BuildStatus expectedStatus) throws InterruptedException, ExecutionException, TimeoutException {
         String url = build.getString("url");
 
         int attempts = 0;
@@ -79,7 +81,7 @@ public class SystemTest {
 
             assertThat(buildResource.toString(), status, not(equalTo(BuildStatus.FAILURE)));
 
-            if (status == BuildStatus.SUCCESS) {
+            if (status == expectedStatus) {
                 break;
             }
             if (attempts > 2000) {
@@ -96,9 +98,9 @@ public class SystemTest {
     public void buildLogsAreAvailableInTheAPI() throws Exception {
         AppRepo appRepo = AppRepo.create("maven");
         JSONObject build1 = new JSONObject(createBuild(appRepo).getContentAsString());
-        build1 = waitForBuildToFinish(build1);
+        build1 = waitForBuildToFinish(build1, BuildStatus.SUCCESS);
         JSONObject build2 = new JSONObject(createBuild(appRepo).getContentAsString());
-        build2 = waitForBuildToFinish(build2);
+        build2 = waitForBuildToFinish(build2, BuildStatus.SUCCESS);
 
         JSONObject api = new JSONObject(
             client.GET("http://localhost:8080/restabuild/api/v1/builds").getContentAsString()
@@ -207,30 +209,27 @@ public class SystemTest {
         AppRepo appRepo = AppRepo.create("hung-build");
 
         int concurrent = config.getInt(Config.CONCURRENT_BUILDS);
-        List<URI> toCancel = new LinkedList<>();
+        List<JSONObject> toCancel = new LinkedList<>();
         for (int i = 0; i < concurrent; i++) {
             var build = new JSONObject(createBuild(appRepo).getContentAsString());
-            toCancel.add(URI.create(build.getString("cancelUrl")));
-            Thread.sleep(100);
+            toCancel.add(build);
         }
-
-        Thread.sleep(1000);
-        System.out.println(new JSONObject(client.GET(buildsUrl()).getContentAsString()).toString(4));
 
         var queuedBuild = new JSONObject(createBuild(appRepo).getContentAsString());
         var resourceUrl = URI.create(queuedBuild.getString("url"));
-        Thread.sleep(2000);
-        System.out.println("******************************");
-        System.out.println(new JSONObject(client.GET(buildsUrl()).getContentAsString()).toString(4));
         assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).getString("status"), equalTo("QUEUED"));
         var cancelURI = URI.create(queuedBuild.getString("cancelUrl"));
         ContentResponse cancelResp = client.POST(cancelURI).send();
         assertThat(cancelResp.getStatus(), equalTo(200));
+        assertEventually(() -> new JSONObject(client.GET(resourceUrl).getContentAsString()).getString("status"), equalTo("CANCELLED"));
 
-
-        for (URI uri : toCancel) {
+        for (JSONObject build : toCancel) {
+            var uri = URI.create(build.getString("cancelUrl"));
             client.POST(uri).send();
         }
-
+        for (JSONObject build : toCancel) {
+            waitForBuildToFinish(build, BuildStatus.CANCELLED);
+        }
     }
+
 }

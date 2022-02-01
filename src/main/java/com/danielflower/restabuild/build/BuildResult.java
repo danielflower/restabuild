@@ -4,6 +4,7 @@ import com.danielflower.restabuild.Config;
 import com.danielflower.restabuild.FileSandbox;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.lib.ObjectId;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -109,7 +110,7 @@ public class BuildResult {
         return build;
     }
 
-    public void run(int buildTimeoutMins, DeletePolicy instanceDirDeletePolicy) throws IOException {
+    public void run(@NotNull BuildProcessListener buildProcessListener, int buildTimeoutMins, DeletePolicy instanceDirDeletePolicy) throws IOException {
         long timeoutMillis = TimeUnit.MINUTES.toMillis(buildTimeoutMins);
         MultiWriter logWriter = new MultiWriter();
         BuildProcess bp = new BuildProcess((buildProcess, oldStatus, newStatus) -> {
@@ -134,6 +135,7 @@ public class BuildResult {
                         log.info("Closing log file writer");
                         logWriter.close();
                     }
+                    buildProcessListener.onStatusChanged(buildProcess, oldStatus, newStatus);
                 }
             }
         }, logWriter, executorService,timeoutMillis, environment, buildParam, repoBranch, sandbox, instanceDirDeletePolicy);
@@ -158,6 +160,8 @@ public class BuildResult {
         BuildProcess bp = this.buildProcess;
         if (bp != null) {
             bp.cancel(BuildStatus.CANCELLED);
+        } else {
+            status = BuildStatus.CANCELLED;
         }
     }
 
@@ -169,10 +173,10 @@ public class BuildResult {
         private final FileWriter logFileWriter;
 
         MultiWriter() throws IOException {
-            this.logFileWriter = new FileWriter(buildLogFile);
+            this.logFileWriter = new FileWriter(buildLogFile, StandardCharsets.UTF_8);
         }
 
-        public void write(char[] cbuf, int off, int len) throws IOException {
+        public void write(char @NotNull [] cbuf, int off, int len) throws IOException {
             buildLog.append(cbuf, off, len);
             logFileWriter.write(cbuf, off, len);
             if (!logListeners.isEmpty()) {

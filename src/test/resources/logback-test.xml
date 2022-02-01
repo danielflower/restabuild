@@ -7,7 +7,7 @@
     </appender>
 
     <logger name="org.eclipse.jetty" level="WARN" />
-    <logger name="com.danielflower.restabuild" level="DEBUG" />
+    <logger name="com.danielflower.restabuild" level="INFO" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />
