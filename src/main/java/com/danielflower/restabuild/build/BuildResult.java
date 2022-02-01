@@ -80,7 +80,11 @@ public class BuildResult {
                 return "Build in progress: " + buildLog;
             }
         }
-        return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
+        if (buildLogFile.isFile()) {
+            return FileUtils.readFileToString(buildLogFile, StandardCharsets.UTF_8);
+        } else {
+            return "No build log saved.";
+        }
     }
 
     public JSONObject toJson() {
@@ -91,6 +95,7 @@ public class BuildResult {
             .put("gitBranch", repoBranch.branch)
             .put("buildParam", buildParam == null ? "" : buildParam)
             .put("status", status.name())
+            .put("completed", status.endState())
             .put("queuedAt", Instant.ofEpochMilli(queueStart).toString())
             .put("queueDurationMillis", queueDuration)
             .put("commitIDBeforeBuild", this.commitIDBeforeBuild)

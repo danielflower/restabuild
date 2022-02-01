@@ -1,61 +1,81 @@
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
     var $ = document.querySelector.bind(document);
-    var cc = $('#curlCommand');
-    var form = $('#createForm');
-    var urlBox = $('#gitUrlBox');
-    var branchBox = $('#branchBox');
-    var buildParamBox = $('#buildParamBox');
-    var path = location.pathname;
-    var apiLink = $('#apiLink');
-    apiLink.textContent = apiLink.href;
 
-    if ('URLSearchParams' in window) {
-        var qs = new URLSearchParams(location.search);
-        urlBox.value = qs.get('url');
-        branchBox.value = qs.get('branch') || '';
-        buildParamBox.value = qs.get('param') || '';
-
-    }
-
-    var update = function () {
-        var value = urlBox.value;
-        var branch = branchBox.value;
-        var buildParam = buildParamBox.value;
-        cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' '  + '-F \'branch=' + (branch || 'master') + '\' ' + (buildParam ?  '-F \'param=' + buildParam + '\' ' : '') + '\'' + form.action + '\'';
-        history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
-    };
-    urlBox.addEventListener('input', update);
-    branchBox.addEventListener('input', update);
-    buildParamBox.addEventListener('input', update);
-    update();
-    form.addEventListener('submit', function () {
-        $('#submitButton').disabled = true;
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) {
+            setTimeout(function () {
+                var submitButton = $('#submitButton');
+                submitButton.removeAttribute('disabled');
+                if ('fetch' in window) {
+                    var ul = $('#recentBuilds');
+                    while (ul.firstChild) ul.removeChild(ul.firstChild);
+                    loadBuilds(null, 0);
+                }
+            }, 0);
+        }
     });
 
-    if ('fetch' in window) {
-        loadBuilds(10, 0);
-    }
+    document.addEventListener('DOMContentLoaded', function () {
+        var cc = $('#curlCommand');
+        var form = $('#createForm');
+        var urlBox = $('#gitUrlBox');
+        var branchBox = $('#branchBox');
+        var buildParamBox = $('#buildParamBox');
+        var path = location.pathname;
+        var apiLink = $('#apiLink');
+        apiLink.textContent = apiLink.href;
+
+        if ('URLSearchParams' in window) {
+            var qs = new URLSearchParams(location.search);
+            urlBox.value = qs.get('url');
+            branchBox.value = qs.get('branch') || '';
+            buildParamBox.value = qs.get('param') || '';
+        }
+
+        var update = function () {
+            var value = urlBox.value;
+            var branch = branchBox.value;
+            var buildParam = buildParamBox.value;
+            cc.textContent = 'curl -LNs -F \'gitUrl=' + (value || 'git-url') + '\' ' + '-F \'branch=' + (branch || 'master') + '\' ' + (buildParam ? '-F \'param=' + buildParam + '\' ' : '') + '\'' + form.action + '\'';
+            history.replaceState(null, null, value ? encodeURI(path) + '?url=' + encodeURIComponent(value) : encodeURI(path));
+        };
+        urlBox.addEventListener('input', update);
+        branchBox.addEventListener('input', update);
+        buildParamBox.addEventListener('input', update);
+        update();
+
+        form.addEventListener('submit', function () {
+            $('#submitButton').setAttribute('disabled', 'disabled');
+        });
+
+        if ('fetch' in window) {
+            loadBuilds(null, 0);
+        }
+    });
 
     function loadBuilds(limit, skip) {
+        limit = limit || 10;
         var ul = $('#recentBuilds');
         var historyButtons = $('.historyButtons');
-        var newerBuildsButton = $('#newerBuildsButton');
         var olderBuildsButton = $('#olderBuildsButton');
-        while (ul.firstChild) ul.removeChild(ul.firstChild);
 
-        var el = function(tag, content) {
+        var el = function (tag, content) {
             var e = document.createElement(tag);
             content && (e.textContent = content);
             return e;
         };
-        fetch('api/v1/builds?limit=' + limit + '&skip=' + skip)
-            .then(function (r) { return r.json(); })
+        var buildsUrl = 'api/v1/builds?limit=' + limit + '&skip=' + skip + '&timestamp=' + Date.now();
+        fetch(buildsUrl)
+            .then(function (r) {
+                if (!r.ok) throw 'Got ' + r.status + ' from ' + buildsUrl;
+                return r.json();
+            })
             .then(function (r) {
                 var builds = r.builds;
                 for (var i = 0; i < builds.length; i++) {
                     var b = builds[i];
                     var li = ul.appendChild(el('li'));
-
+                    li.setAttribute('rb-id', b.id);
                     var queueDate = new Date(Date.parse(b.queuedAt));
                     var a = li.appendChild(el('a', queueDate.toLocaleString()));
                     a.href = b.logUrl;
@@ -75,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         li.appendChild(document.createTextNode(' - created tags '));
                         for (var j = 0; j < b.tagsCreated.length; j++) {
                             li.appendChild(el('code', b.tagsCreated[j]));
-                            li.appendChild(document.createTextNode(' ' ));
+                            li.appendChild(document.createTextNode(' '));
                         }
                     }
 
@@ -88,15 +108,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                var hasNewer = skip > 0;
                 var hasOlder = builds.length === limit;
-                if (!hasOlder && !hasNewer) {
+                if (!hasOlder) {
                     historyButtons.style.display = 'none';
                 } else {
-                    newerBuildsButton.onclick = function () { loadBuilds(limit, Math.max(0,skip - limit)); }
-                    olderBuildsButton.onclick = function () { loadBuilds(limit, skip + limit) };
+                    olderBuildsButton.onclick = function () {
+                        loadBuilds(limit, skip + limit)
+                    };
                     historyButtons.style.display = 'block';
-                    newerBuildsButton.style.display = hasNewer ? 'inline' : 'none';
                     olderBuildsButton.style.display = hasOlder ? 'inline' : 'none';
                 }
             })
@@ -105,5 +124,4 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
     }
-
-});
+})();

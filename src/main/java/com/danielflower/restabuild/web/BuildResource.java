@@ -32,6 +32,12 @@ import java.util.stream.Collectors;
 @Description("Builds")
 public class BuildResource {
 
+    /**
+     * A bunch of whitespace to force some browsers to render small streamed responses immediately
+     * (some browsers will not render text until a certain tipping point it reached apparently to detect
+     * things like character encoding, even though encoding is explicitly set).
+     */
+    private final String bufferBuster = " ".repeat(1024);
     private final FileSandbox fileSandbox;
     private final BuildDatabase database;
     private final BuildQueue buildQueue;
@@ -63,10 +69,10 @@ public class BuildResource {
         BuildResult result = createInternal(gitUrl, branch, buildParam, uriInfo);
         UriBuilder buildPath = uriInfo.getRequestUriBuilder().path(result.id);
         return Response.seeOther(uriInfo.getRequestUriBuilder().path(result.id).path("log").build())
+            .cacheControl(CacheControl.valueOf("no-cache"))
             .header("Content-Type", MediaType.APPLICATION_JSON)
             .header("Build-URL", buildPath.build())
             .entity(jsonForResult(buildPath, result).toString(4))
-            .header(HeaderNames.CACHE_CONTROL.toString(), HeaderValues.NO_CACHE)
             .build();
     }
 
@@ -74,7 +80,7 @@ public class BuildResource {
         URIish gitURIish = validateGitUrl(gitUrl);
 
         String gitBranch = branch;
-        if(null == branch || branch.trim().isEmpty()) {
+        if (null == branch || branch.trim().isEmpty()) {
             gitBranch = "master";
         }
 
@@ -112,32 +118,36 @@ public class BuildResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Description("Gets all the builds that have been submitted ordered by newest to oldest")
-    public String getAll(@Context UriInfo uriInfo,
+    public Response getAll(@Context UriInfo uriInfo,
                          @Description("The number to skip") @QueryParam("skip") @DefaultValue("0") long skip,
                          @Description("The maximum number to return") @QueryParam("limit") @DefaultValue("100") long limit) {
         JSONObject result = new JSONObject()
             .put("builds", new JSONArray(
                 database.all().stream()
-                    .sorted((o1, o2) -> (int)(o2.queueStart - o1.queueStart))
+                    .sorted((o1, o2) -> (int) (o2.queueStart - o1.queueStart))
                     .skip(skip)
                     .limit(limit)
                     .map(br -> jsonForResult(uriInfo.getRequestUriBuilder().path(br.id), br))
                     .collect(Collectors.toList()))
             );
-        return result.toString(4);
+        return Response.ok(result.toString(4))
+            .cacheControl(CacheControl.valueOf("no-cache"))
+            .build();
     }
 
     @GET
     @Path("{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Description("Gets the build information for a specific build")
-    @ApiResponse(code="200", message="Success")
-    @ApiResponse(code="404", message="No build with that ID exists", contentType = "text/plain")
-    public String get(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
-                              String id, @Context UriInfo uriInfo) {
+    @ApiResponse(code = "200", message = "Success")
+    @ApiResponse(code = "404", message = "No build with that ID exists", contentType = "text/plain")
+    public Response get(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
+                          String id, @Context UriInfo uriInfo) {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
-            return jsonForResult(uriInfo.getRequestUriBuilder(), br.get()).toString(4);
+            return Response.ok(jsonForResult(uriInfo.getRequestUriBuilder(), br.get()).toString(4))
+                .cacheControl(CacheControl.valueOf("no-cache"))
+                .build();
         } else {
             throw new NotFoundException();
         }
@@ -147,18 +157,20 @@ public class BuildResource {
     @Path("{id}/cancel")
     @Produces(MediaType.APPLICATION_JSON)
     @Description("Cancels an in-progress build")
-    @ApiResponse(code="200", message="Success")
-    @ApiResponse(code="404", message="No build with that ID exists", contentType = "text/plain")
-    @ApiResponse(code="409", message="The build was not in a cancelable state", contentType = "text/plain")
-    public String cancel(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
-                          String id, @Context UriInfo uriInfo) throws InterruptedException {
+    @ApiResponse(code = "200", message = "Success")
+    @ApiResponse(code = "404", message = "No build with that ID exists", contentType = "text/plain")
+    @ApiResponse(code = "409", message = "The build was not in a cancelable state", contentType = "text/plain")
+    public Response cancel(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
+                             String id, @Context UriInfo uriInfo) throws InterruptedException {
         Optional<BuildResult> obr = database.get(id);
         if (obr.isPresent()) {
             BuildResult br = obr.get();
             try {
                 buildQueue.cancel(br);
                 UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/cancel", ""));
-                return jsonForResult(buildPath, br).toString(4);
+                return Response.ok(jsonForResult(buildPath, br).toString(4))
+                    .cacheControl(CacheControl.valueOf("no-cache"))
+                    .build();
             } catch (IllegalStateException ise) {
                 throw new ClientErrorException(ise.getMessage(), Response.Status.CONFLICT);
             }
@@ -181,20 +193,22 @@ public class BuildResource {
     @Path("{id}/log")
     @Produces("text/plain; charset=utf-8")
     @Description(value = "Gets the build log as plain text", details = "If the build is in progress then it will stream the response until it is complete")
-    @ApiResponse(code="200", message="Success")
-    @ApiResponse(code="404", message="No build with that ID exists")
+    @ApiResponse(code = "200", message = "Success")
+    @ApiResponse(code = "404", message = "No build with that ID exists")
     public void getLog(@PathParam("id") @Description("The generated build ID which is returned when a new build is posted")
-                               String id, @Context MuResponse resp, @Context UriInfo uriInfo) throws IOException {
+                           String id, @Context MuResponse resp, @Context UriInfo uriInfo) throws IOException {
         Optional<BuildResult> br = database.get(id);
         if (br.isPresent()) {
             BuildResult result = br.get();
             resp.contentType(ContentTypes.TEXT_PLAIN_UTF8);
             UriBuilder buildPath = uriInfo.getRequestUriBuilder().replacePath(uriInfo.getAbsolutePath().getPath().replace("/log", ""));
             JSONObject jsonObject = jsonForResult(buildPath, result);
-            String header = jsonObject.toString(4) + "\n\n";
+            String header = jsonObject.toString(4) + "\n" + bufferBuster + "\n";
             if (result.hasFinished()) {
+                resp.headers().set(HeaderNames.CACHE_CONTROL, "public, max-age=86400, immutable");
                 resp.write(header + result.log());
             } else {
+                resp.headers().set(HeaderNames.CACHE_CONTROL, HeaderValues.NO_CACHE);
 
                 resp.sendChunk(header);
 

@@ -56,6 +56,7 @@ public class BuildQueue {
                                 inProgressBuilds--;
                                 log.info("Build " + build.id + " completed with status " + newStatus + "; new queue size is " + inProgressBuilds);
                             }
+                            startIfCapacity();
                         }
                     }, buildTimeout, instanceDirDeletePolicy);
                     inProgressBuilds++;

@@ -231,16 +231,20 @@ public class BuildProcess {
                 } catch (Exception ex) {
                     BuildStatus finalStatue;
                     if (buildCancelled()) {
+                        doubleLogIgnoreException(logWriter, "Build cancelled");
                         finalStatue = BuildStatus.CANCELLED;
                     } else if (ex instanceof InterruptedException || ex instanceof InterruptedIOException) {
                         log.info("Stopping due to shut down of server");
                         doubleLogIgnoreException(logWriter, "Restabuild server shutting down so build stopped");
                         finalStatue = BuildStatus.CANCELLED;
                     } else if (ex instanceof GitAPIException) {
-                        doubleLogIgnoreException(logWriter, "Error while checking out repository: " + ex.getMessage());
+                        Throwable cause = Objects.requireNonNullElse(ex.getCause(), ex);
+                        doubleLogIgnoreException(logWriter, "Error while checking out repository: " + cause.getMessage());
                         finalStatue = BuildStatus.FAILURE;
                     } else {
-                        log.error("Error while starting build", ex);
+                        Throwable cause = Objects.requireNonNullElse(ex.getCause(), ex);
+                        doubleLogIgnoreException(logWriter, "Error while starting build: " + cause.getMessage());
+                        log.error("Error stacktrace:", ex);
                         finalStatue = BuildStatus.FAILURE;
                     }
                     try {
@@ -280,7 +284,7 @@ public class BuildProcess {
         try {
             doubleLog(writer, message);
         } catch (Exception e) {
-            log.warn("Error while writing " + message + " to log", e);
+            log.warn("Error while writing " + message + " to log: " + e.getMessage());
         }
     }
     private void doubleLog(Writer writer, String message) throws IOException {
